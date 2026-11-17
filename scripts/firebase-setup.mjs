@@ -27,4 +27,14 @@ if(mode==='inspect'){
  const writes=terms.map((t,i)=>({update:{name:`projects/${project}/databases/(default)/documents/terms/${t.id}`,fields:Object.fromEntries(Object.entries({...t,position:i,revision:1}).map(([k,v])=>[k,value(v)]))},updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}],currentDocument:{exists:false}}));
  const result=await api(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents:commit`,{method:'POST',body:JSON.stringify({writes})});
  console.log(JSON.stringify({created:result.writeResults.length,commitTime:result.commitTime}));
+}else if(mode==='sync-figma'){
+ const terms=JSON.parse(await readFile('public/terms.json','utf8')).filter(term=>term.categories.includes('피그마'));
+ const writes=terms.map(term=>({
+  update:{name:`projects/${project}/databases/(default)/documents/terms/${term.id}`,fields:{categories:{arrayValue:{values:term.categories.map(category=>({stringValue:category}))}}}},
+  updateMask:{fieldPaths:['categories']},
+  updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}],
+  currentDocument:{exists:true}
+ }));
+ const result=await api(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents:commit`,{method:'POST',body:JSON.stringify({writes})});
+ console.log(JSON.stringify({updated:result.writeResults.length,commitTime:result.commitTime}));
 }else throw new Error('Unknown setup mode.');

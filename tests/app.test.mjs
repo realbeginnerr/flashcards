@@ -7,7 +7,7 @@ const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8'
 const source=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
 const terms=core.normalizeCatalog(JSON.parse(await readFile(new URL('../public/terms.json',import.meta.url),'utf8')));
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function setup({cards=terms,state,hash='',motion=false}={}){
+async function setup({cards=terms,state,hash='',motion=false,authenticated=true,cloudState=null}={}){
  const win=new Window({url:'http://localhost:5174/'+hash,settings:{disableCSSFileLoading:true,disableJavaScriptFileLoading:true}});
  const animations=[];
  win.matchMedia=()=>({matches:!motion});
@@ -15,12 +15,13 @@ async function setup({cards=terms,state,hash='',motion=false}={}){
  win.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
  if(state!==undefined)win.localStorage.setItem(core.STORE_KEY,typeof state==='string'?state:JSON.stringify(state));
  win.scrollTo=()=>{};win.confirm=()=>true;win.alert=()=>{};let admin=false,saved=null;
- win.__deps={...core,e:core.escapeHtml,configured:true,loadCatalog:async()=>cards,currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
+ let user=authenticated?{uid:'approved-user',email:'approved@example.com',emailVerified:true}:null,passwordSetupEmail=null,savedCloudState=cloudState,deletionRequested=false;
+ win.__deps={...core,e:core.escapeHtml,configured:true,loadCatalog:async()=>cards,currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},currentUser:async()=>user,userLogin:async email=>{user={uid:'approved-user',email,emailVerified:true};},requestPasswordSetup:async email=>{passwordSetupEmail=email;},userLogout:async()=>{user=null;},loadStudyState:async()=>savedCloudState,saveStudyState:async value=>{savedCloudState=value;},requestAccountDeletion:async()=>{deletionRequested=true;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
  const body=source.replace(/^import .*;\r?\n/gm,'');
  const bindings=Object.keys(win.__deps).join(',');
  win.eval(`{ const {${bindings}} = window.__deps; ${body} }`);
  await wait(35);
- return {win,doc:win.document,animations,click(action){const el=win.document.querySelector(`[data-action="${action}"]`) || (action==='flip'?win.document.querySelector('.flashcard'):null);assert.ok(el,`button ${action}`);el.click();},saved:()=>saved,close:()=>win.close()};
+ return {win,doc:win.document,animations,click(action){const el=win.document.querySelector(`[data-action="${action}"]`) || (action==='flip'?win.document.querySelector('.flashcard'):null);assert.ok(el,`button ${action}`);el.click();},saved:()=>saved,passwordSetupEmail:()=>passwordSetupEmail,cloudState:()=>savedCloudState,deletionRequested:()=>deletionRequested,close:()=>win.close()};
 }
 test('homepage shows actual category counts and 10-card session with bilingual term',async()=>{
  const ui=await setup();try{
@@ -33,10 +34,86 @@ test('homepage shows actual category counts and 10-card session with bilingual t
  assert.equal(JSON.parse(ui.win.localStorage.getItem(core.STORE_KEY)).ratings[terms[0].id],'unknown');
  }finally{ui.close();}
 });
+test('homepage shows Pickle copy and official Android and iOS download links',async()=>{
+ const ui=await setup();try{
+  assert.equal(ui.doc.querySelector('.home-intro h1').textContent,'AI시대 뒤처지긴 싫고 시간은 없고,그래서 하루 용어 딱 10개씩만.');
+  assert.match(ui.doc.querySelector('.intro-copy').textContent,/내 AI 비서 "피클"을 연결해 두면/);
+  assert.match(ui.doc.querySelector('.intro-copy').textContent,/매일 저녁 8시, 용어 퀴즈 전화/);
+  const links=[...ui.doc.querySelectorAll('.store-links a')];
+  assert.equal(links.length,2);
+  assert.equal(links[0].href,'https://play.google.com/store/apps/details?id=com.pickle.client');
+  assert.equal(links[1].href,'https://apps.apple.com/kr/app/id6795790129');
+  assert.equal(links[0].querySelector('img').getAttribute('src'),'./google-play.svg');
+  assert.equal(links[1].querySelector('img').getAttribute('src'),'./app-store.svg');
+  assert.equal(ui.doc.querySelector('.sample'),null);
+  assert.doesNotMatch(ui.doc.querySelector('.home-intro').textContent,/오늘, 이런 용어는 어때요|AI에게 작업 방법을 알려주는 지침 묶음/);
+  assert.doesNotMatch(ui.doc.querySelector('.home-intro').textContent,/하루 열 장, 새로운 지식 한 조각|알 듯 말 듯한 용어|가입 없이 가볍게 시작/);
+  assert.doesNotMatch(ui.doc.querySelector('.start-panel').textContent,/한 번에 10장씩, 내 속도대로/);
+ }finally{ui.close();}
+});
+test('homepage shows requested category order and display labels without changing filter values',async()=>{
+ const ui=await setup();try{
+  const options=[...ui.doc.querySelectorAll('.category-option')];
+  assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','UXUI 디자인','피그마','마케팅, 브랜딩']);
+  assert.deepEqual(options.map(option=>option.querySelector('input').value),['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅']);
+ }finally{ui.close();}
+});
+test('header shows only the logo name without a side tagline',async()=>{
+ const ui=await setup();try{
+  assert.equal(ui.doc.querySelector('.brand').textContent.trim(),'붕억빵');
+  assert.equal(ui.doc.querySelector('.brand-mark').getAttribute('src'),'./boongeoppang-complete.png');
+  assert.equal(ui.doc.querySelector('.brand-tag'),null);
+  assert.equal(ui.doc.querySelector('.header-login').textContent,'마이페이지');
+  assert.equal(ui.doc.querySelector('.header-login').getAttribute('href'),'#/login');
+  assert.equal(ui.doc.querySelector('.header-admin').textContent,'관리자');
+  assert.equal(ui.doc.querySelector('.header-admin').getAttribute('href'),'#/admin');
+  assert.equal(ui.doc.querySelector('.header-admin').nextElementSibling,ui.doc.querySelector('.header-login'));
+ }finally{ui.close();}
+});
+test('approved user can open login, request password setup and sign in',async()=>{
+ const ui=await setup({hash:'#/login',authenticated:false});try{
+  assert.equal(ui.doc.querySelector('h1').textContent,'로그인');
+  const form=ui.doc.querySelector('#user-login-form');
+  form.elements.email.value='approved@example.com';
+  ui.click('password-setup');await wait(5);
+  assert.equal(ui.passwordSetupEmail(),'approved@example.com');
+  form.elements.password.value='secure-password';
+  form.dispatchEvent(new ui.win.Event('submit',{bubbles:true,cancelable:true}));await wait(10);
+  assert.match(ui.doc.querySelector('h1').textContent,/내 계정/);
+  assert.match(ui.doc.querySelector('.admin-login').textContent,/approved@example.com/);
+ }finally{ui.close();}
+});
+test('mypage shows cloud progress and submits an irreversible deletion request',async()=>{
+ const saved=core.rate(core.emptyState(),terms[0].id,'unknown');
+ const ui=await setup({hash:'#/login',cloudState:saved});try{
+  assert.equal(ui.doc.querySelector('.header-login').textContent,'마이페이지');
+  assert.match(ui.doc.querySelector('.account-stats').textContent,/학습한 용어1/);
+  ui.click('show-delete-request');
+  assert.match(ui.doc.querySelector('.delete-warning').textContent,/약 1일/);
+  assert.match(ui.doc.querySelector('.delete-warning').textContent,/다시 복구할 수 없어요/);
+  ui.click('confirm-account-delete');await wait(5);
+  assert.equal(ui.deletionRequested(),true);
+  assert.match(ui.doc.querySelector('h1').textContent,/삭제 요청을 보냈어요/);
+ }finally{ui.close();}
+});
+test('home omits browser storage note and footer links to Instagram proposals',async()=>{
+ const ui=await setup();try{
+  assert.doesNotMatch(ui.doc.querySelector('.start-panel').textContent,/기록은 이 브라우저에 저장돼요|자세히/);
+  const proposal=[...ui.doc.querySelectorAll('.site-footer a')].find(link=>link.textContent==='용어제안/기타제휴');
+  assert.ok(proposal);
+  assert.equal(proposal.href,'https://www.instagram.com/t_s_recipe?vrfl=MWRzMTVmNW1iMjlqdA%3D%3D&utm_source=qr');
+  assert.equal(proposal.target,'_blank');
+  assert.deepEqual([...ui.doc.querySelector('.site-footer').children].map(element=>element.textContent),['© 붕억빵','용어제안/기타제휴']);
+  assert.equal(ui.doc.querySelector('.site-footer a[href="#/admin"]'),null);
+ }finally{ui.close();}
+});
 test('ten evaluations finish one batch and next starts at card eleven',async()=>{
  const ui=await setup();try{
  ui.click('start');for(let i=0;i<10;i++){ui.click('flip');ui.click(i%2?'known':'unknown');await wait(260);}
  assert.match(ui.doc.querySelector('h1').textContent,/学習|학습/);
+ assert.equal(ui.doc.querySelector('.completion-image').getAttribute('src'),'./boongeoppang-complete.png');
+ assert.equal(ui.doc.querySelector('.completion-image').getAttribute('alt'),'완성된 붕어빵');
+ assert.equal(ui.doc.querySelector('.complete-panel .eyebrow').textContent,'오늘도 붕어빵 굽기 완료!');
  assert.match(ui.doc.querySelector('.result-stats').textContent,/10/);
  ui.click('next');assert.equal(ui.doc.querySelector('h1').textContent,terms[10].term);
  assert.equal(JSON.parse(ui.win.localStorage.getItem(core.STORE_KEY)).completed['전체'].length,10);
@@ -202,7 +279,7 @@ test('logo navigates home even when default link navigation is intercepted',asyn
    ui.click('start');ui.click('flip');
    const link=ui.doc.querySelector(selector);
    link.addEventListener('click',event=>event.preventDefault());
-   link.querySelector('span').click();await wait(35);
+    link.querySelector('.brand-mark').click();await wait(35);
    assert.ok(ui.doc.querySelector('.start-panel'),`${selector} with ${hash||'empty hash'}`);
    assert.equal(ui.doc.querySelector('.flashcard'),null);
   }finally{ui.close();}

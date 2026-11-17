@@ -1,4 +1,4 @@
-export const CATEGORIES=['UX/UI 디자인','개발','AI 툴','마케팅'];
+export const CATEGORIES=['UX/UI 디자인','피그마','개발','AI 툴','마케팅'];
 export const STORE_KEY='boongeok.study.v1';
 export const emptyState=()=>({version:1,ratings:{},completed:{}});
 const unique=a=>[...new Set(a)];

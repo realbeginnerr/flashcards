@@ -1,5 +1,5 @@
 import { firebaseConfig,adminEmail } from '../config.js';
-import { normalizeCatalog,normalizeTerm } from './core.js';
+import { normalizeCatalog,normalizeTerm,parseState } from './core.js';
 export const configured=Boolean(firebaseConfig?.apiKey&&firebaseConfig?.projectId&&firebaseConfig?.authDomain);
 let cloudPromise;
 export function cloud(){
@@ -30,6 +30,43 @@ export async function login(){
  if(!await currentAdmin()){await authSDK.signOut(auth);throw new Error('이 계정에는 관리 권한이 없어요. 관리자 계정으로 다시 로그인해주세요.');}
 }
 export async function logout(){const {auth,authSDK}=await cloud();await authSDK.signOut(auth);}
+export async function currentUser(){
+ const {auth}=await cloud();await auth.authStateReady();
+ return auth.currentUser?.emailVerified?auth.currentUser:null;
+}
+export async function userLogin(email,password){
+ const {auth,authSDK}=await cloud();
+ const result=await authSDK.signInWithEmailAndPassword(auth,email.trim(),password);
+ if(!result.user.emailVerified){
+  await authSDK.sendEmailVerification(result.user);
+  await authSDK.signOut(auth);
+  throw new Error('이메일 인증이 필요해요. 방금 보낸 인증 메일을 확인한 뒤 다시 로그인해주세요.');
+ }
+ return result.user;
+}
+export async function requestPasswordSetup(email){
+ const {auth,authSDK}=await cloud();
+ await authSDK.sendPasswordResetEmail(auth,email.trim());
+}
+export async function userLogout(){const {auth,authSDK}=await cloud();await authSDK.signOut(auth);}
+export async function loadStudyState(){
+ const user=await currentUser();if(!user)return null;
+ const {db,fs}=await cloud();const snap=await fs.getDoc(fs.doc(db,'users',user.uid,'study','state'));
+ if(!snap.exists())return null;
+ return parseState(JSON.stringify(snap.data().state));
+}
+export async function saveStudyState(state){
+ const user=await currentUser();if(!user)throw new Error('학습 기록을 저장하려면 로그인이 필요해요.');
+ const {db,fs}=await cloud();await fs.setDoc(fs.doc(db,'users',user.uid,'study','state'),{state,updatedAt:fs.serverTimestamp()});
+}
+export async function requestAccountDeletion(){
+ const user=await currentUser();if(!user)throw new Error('계정 삭제를 요청하려면 로그인이 필요해요.');
+ const {db,fs}=await cloud();
+ await fs.setDoc(fs.doc(db,'accountDeletionRequests',user.uid),{
+  requesterEmail:user.email,to:[adminEmail],status:'requested',requestedAt:fs.serverTimestamp(),
+  message:{subject:'[붕억빵] 계정 삭제 요청',text:`${user.email} 사용자가 계정 삭제를 요청했습니다. Firebase Authentication과 해당 사용자의 학습 기록을 확인한 뒤 삭제해주세요.`}
+ });
+}
 export async function writeTerm(value,previous){
  if(!await currentAdmin())throw new Error('로그인 상태를 확인해주세요. 작성한 내용은 그대로 유지됩니다.');
  const clean=normalizeTerm(value);const {db,fs}=await cloud();const ref=fs.doc(db,'terms',clean.id);

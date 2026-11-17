@@ -33,3 +33,22 @@ test('administrator still cannot save missing definition, invalid category or mi
  await assertFails(setDoc(doc(db,'terms','invalid-probe'),{...value('invalid-probe'),categories:['other']}));
  await assertFails(setDoc(doc(db,'terms','invalid-probe'),value('different-id')));
 });
+test('verified user can store only their own study state',async()=>{
+ const own=env.authenticatedContext('study-user',{email:'learner@example.com',email_verified:true}).firestore();
+ const other=env.authenticatedContext('other-user',{email:'other@example.com',email_verified:true}).firestore();
+ const ref=doc(own,'users','study-user','study','state');
+ await assertSucceeds(setDoc(ref,{state:{version:1,ratings:{card:'known'},completed:{}},updatedAt:serverTimestamp()}));
+ await assertSucceeds(getDoc(ref));
+ await assertFails(getDoc(doc(other,'users','study-user','study','state')));
+ await assertFails(setDoc(doc(other,'users','study-user','study','state'),{state:{version:1,ratings:{},completed:{}},updatedAt:serverTimestamp()}));
+ await assertFails(deleteDoc(ref));
+});
+test('verified user can create one fixed account deletion request only for themself',async()=>{
+ const email='learner@example.com';
+ const db=env.authenticatedContext('delete-user',{email,email_verified:true}).firestore();
+ const request={requesterEmail:email,to:['hijmjo@gmail.com'],status:'requested',requestedAt:serverTimestamp(),message:{subject:'[붕억빵] 계정 삭제 요청',text:`${email} 사용자가 계정 삭제를 요청했습니다. Firebase Authentication과 해당 사용자의 학습 기록을 확인한 뒤 삭제해주세요.`}};
+ await assertSucceeds(setDoc(doc(db,'accountDeletionRequests','delete-user'),request));
+ await assertFails(setDoc(doc(db,'accountDeletionRequests','another-user'),request));
+ await assertFails(setDoc(doc(db,'accountDeletionRequests','delete-user'),{...request,to:['attacker@example.com']}));
+ await assertFails(deleteDoc(doc(db,'accountDeletionRequests','delete-user')));
+});

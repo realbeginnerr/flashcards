@@ -6,6 +6,11 @@ service cloud.firestore {
         && request.auth.token.email_verified == true
         && request.auth.token.email == 'hijmjo@gmail.com';
     }
+    function isVerifiedUser(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email_verified == true;
+    }
     function validTerm() {
       let d = request.resource.data;
       return d.keys().hasOnly(['id','term','englishTerm','definition','explanation','example','categories','sources','revision','position','updatedAt'])
@@ -16,8 +21,8 @@ service cloud.firestore {
         && d.definition is string && d.definition.size() > 0 && d.definition.size() <= 20000
         && d.explanation is string && d.explanation.size() <= 20000
         && d.example is string && d.example.size() <= 20000
-        && d.categories is list && d.categories.size() > 0 && d.categories.size() <= 4
-        && d.categories.hasOnly(['UX/UI 디자인','개발','AI 툴','마케팅'])
+        && d.categories is list && d.categories.size() > 0 && d.categories.size() <= 5
+        && d.categories.hasOnly(['UX/UI 디자인','피그마','개발','AI 툴','마케팅'])
         && d.sources is list && d.sources.size() <= 20
         && d.position is number && d.revision is int && d.revision > 0
         && d.updatedAt == request.time;
@@ -27,6 +32,27 @@ service cloud.firestore {
       allow create: if isAdmin() && validTerm() && request.resource.data.id == termId && request.resource.data.revision == 1;
       allow update: if isAdmin() && validTerm() && request.resource.data.id == termId && request.resource.data.revision == resource.data.revision + 1;
       allow delete: if isAdmin();
+    }
+    match /users/{uid}/study/{documentId} {
+      allow read: if isVerifiedUser(uid);
+      allow create, update: if isVerifiedUser(uid)
+        && documentId == 'state'
+        && request.resource.data.keys().hasOnly(['state','updatedAt'])
+        && request.resource.data.state is map
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /accountDeletionRequests/{uid} {
+      allow read: if isVerifiedUser(uid);
+      allow create: if isVerifiedUser(uid)
+        && request.resource.data.keys().hasOnly(['requesterEmail','to','status','requestedAt','message'])
+        && request.resource.data.requesterEmail == request.auth.token.email
+        && request.resource.data.to == ['hijmjo@gmail.com']
+        && request.resource.data.status == 'requested'
+        && request.resource.data.requestedAt == request.time
+        && request.resource.data.message.subject == '[붕억빵] 계정 삭제 요청'
+        && request.resource.data.message.text == request.auth.token.email + ' 사용자가 계정 삭제를 요청했습니다. Firebase Authentication과 해당 사용자의 학습 기록을 확인한 뒤 삭제해주세요.';
+      allow update, delete: if false;
     }
     match /{document=**} { allow read, write: if false; }
   }
