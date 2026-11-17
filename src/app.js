@@ -1,32 +1,43 @@
-import {CATEGORIES,loadState,saveState,eligible,unknownCards,nextBatch,rate,completeBatch,resetScope,bilingual,escapeHtml as e} from './core.js';
+import {CATEGORIES,emptyState,eligible,unknownCards,nextBatch,rate,completeBatch,resetScope,bilingual,escapeHtml as e} from './core.js';
 import {loadCatalog,configured,currentAdmin,login,logout,currentUser,userLogin,requestPasswordSetup,userLogout,loadStudyState,saveStudyState,requestAccountDeletion,writeTerm,deleteTerm,seedCatalog} from './cloud.js';
 const main=document.querySelector('#main'),notice=document.querySelector('#notice');
-let storage;
-try{storage=window.localStorage;}catch{storage={getItem(){throw new Error('저장소 접근 불가');},setItem(){throw new Error('저장소 접근 불가');}};}
-const loaded=loadState(storage);let state=loaded.state,storageBlocked=Boolean(loaded.error),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve();
+let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve();
 const selected=(v,target)=>v===target?' checked':'';
 const HOME_CATEGORIES=['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅'];
 const HOME_CATEGORY_LABELS={'전체':'전체','AI 툴':'AI','개발':'개발','UX/UI 디자인':'UXUI 디자인','피그마':'피그마','마케팅':'마케팅, 브랜딩'};
 const button=(text,action,style='primary',extra='')=>`<button class="btn ${style}" type="button" data-action="${action}" ${extra}>${text}</button>`;
 const tags=t=>`<div class="tags">${t.categories.map(c=>`<span>${e(c)}</span>`).join('')}</div>`;
 const arrow='<span aria-hidden="true">↗</span>';
+const PICKLE_PROMPT=`다음 웹사이트에 로그인해 내 단어 학습 현황을 확인하고, 매주 월~금 저녁 9시에 전화로 단어 암기 테스트를 진행해 줘.
+
+https://realbeginnerr.github.io/flashcards/
+
+학습 규칙
+
+1. 매일 단어 10개씩 질문한다.
+2. 하루는 새로운 단어, 다음 날은 이전에 틀렸거나 모르는 단어를 복습하는 방식으로 번갈아 진행한다.
+3. 복습할 단어가 없으면 새로운 단어를 질문한다.
+4. 내 답변의 정답 여부를 직접 판단하고 학습 기록에 반영한다.
+5. 매일 웹사이트의 최신 학습 현황을 확인해 다음 테스트에 반영한다.
+
+이 작업을 반복 일정으로 설정하고, 필요한 로그인 정보나 접근 권한이 있으면 요청해 줘.`;
+const picklePrompt=()=>`<button class="pickle-prompt-trigger" type="button" data-action="show-pickle-prompt">피클에게 이렇게 요청해보세요</button><dialog class="pickle-prompt-dialog" aria-labelledby="pickle-prompt-title"><div class="prompt-dialog-heading"><h2 id="pickle-prompt-title">피클에게 요청할 프롬프트</h2><button class="prompt-dialog-close" type="button" data-action="close-pickle-prompt" aria-label="팝업 닫기">닫기</button></div><p class="pickle-prompt-copy">${e(PICKLE_PROMPT)}</p></dialog>`;
 function focusTitle(){requestAnimationFrame(()=>{main.querySelector('h1')?.focus({preventScroll:true});window.scrollTo({top:0,behavior:'instant'});});}
 function message(text){const el=document.querySelector('#toast');el.textContent=text;el.classList.add('visible');clearTimeout(message.timer);message.timer=setTimeout(()=>el.classList.remove('visible'),3500);}
 function banner(text){notice.innerHTML=`<div class="notice" role="alert">${e(text)}</div>`;}
-if(storageBlocked)banner('저장된 기록을 읽을 수 없어요. 기존 기록은 보존하고, 지금 학습은 임시로 진행할게요.');
 function persist(){
- if(!storageBlocked){const error=saveState(storage,state);if(error)banner('학습 기록의 임시 사본을 저장하지 못했어요.');}
+ if(!activeUser)return;
  const snapshot=state;
  cloudSaveQueue=cloudSaveQueue.catch(()=>{}).then(()=>saveStudyState(snapshot)).catch(error=>banner(error.message||'학습 기록을 저장소에 저장하지 못했어요. 다시 시도해주세요.'));
 }
 function setHeaderUser(user){const link=document.querySelector('.header-login');if(!link)return;link.textContent=user?'마이페이지':'로그인';link.href='#/login';}
-function requireUser(){if(activeUser)return activeUser;if(location.hash!=='#/login')location.hash='#/login';else userAccount();return null;}
 function render(content,{wide=false}={}){main.className=wide?'wide':'';main.innerHTML=content;document.querySelector('.site-footer').hidden=Boolean(session&&!session.done);focusTitle();}
 function home(){
  session=null;dirty=false;editing=null;
  const total=eligible(terms,scope),done=new Set(state.completed[scope]||[]),remaining=total.filter(t=>!done.has(t.id)).length;
  const unknown=unknownCards(terms,state).length;
- render(`<section class="home-grid"><div class="home-intro"><h1 tabindex="-1">AI시대 뒤처지긴 싫고 시간은 없고,<br><span>그래서 하루 용어 딱 10개씩만.</span></h1><p class="intro-copy">내 AI 비서 "피클"을 연결해 두면<br>매일 저녁 8시, 용어 퀴즈 전화가 와요.</p><div class="store-links" aria-label="피클 앱 다운로드"><a href="https://play.google.com/store/apps/details?id=com.pickle.client" target="_blank" rel="noopener noreferrer"><img src="./google-play.svg" alt="">Google Play에서 받기 <span aria-hidden="true">↗</span></a><a href="https://apps.apple.com/kr/app/id6795790129" target="_blank" rel="noopener noreferrer"><img src="./app-store.svg" alt="">App Store에서 받기 <span aria-hidden="true">↗</span></a></div></div><section class="start-panel" aria-labelledby="start-title"><div class="panel-heading"><p class="eyebrow">무엇을 공부할까요?</p><h2 id="start-title">오늘의 학습 분야</h2></div><fieldset class="category-list"><legend class="sr-only">학습 분야 선택</legend>${HOME_CATEGORIES.map((c,i)=>`<label class="category-option"><input type="radio" name="scope" value="${e(c)}"${selected(scope,c)}><span class="category-index">0${i+1}</span><span class="category-name">${e(HOME_CATEGORY_LABELS[c])}</span><span class="category-count">${eligible(terms,c).length}<span>개</span></span><span class="radio-mark" aria-hidden="true"></span></label>`).join('')}</fieldset><div class="start-actions">${button(total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요','start','primary',!total.length?'disabled':'')}${button(`모르는 용어 복습 <span class="count">${unknown}</span>`,'review','secondary')}</div></section></section>`,{wide:true});
+ render(`<section class="home-grid"><div class="home-intro"><h1 tabindex="-1">AI시대 뒤처지긴 싫고 시간은 없고,<br><span>그래서 하루 용어 딱 10개씩만.</span></h1><p class="intro-copy">내 AI 비서 "피클"을 연결해 두면<br>매일 저녁 8시, 용어 퀴즈 전화가 와요.</p><div class="store-links" aria-label="피클 앱 다운로드"><a href="https://play.google.com/store/apps/details?id=com.pickle.client" target="_blank" rel="noopener noreferrer"><img src="./google-play.svg" alt="">Google Play에서 받기 <span aria-hidden="true">↗</span></a><a href="https://apps.apple.com/kr/app/id6795790129" target="_blank" rel="noopener noreferrer"><img src="./app-store.svg" alt="">App Store에서 받기 <span aria-hidden="true">↗</span></a></div></div><section class="start-panel" aria-labelledby="start-title"><div class="panel-heading"><p class="eyebrow">무엇을 공부할까요?</p><h2 id="start-title">오늘의 학습 분야</h2></div><fieldset class="category-list"><legend class="sr-only">학습 분야 선택</legend>${HOME_CATEGORIES.map((c,i)=>`<label class="category-option"><input type="radio" name="scope" value="${e(c)}"${selected(scope,c)}><span class="category-index">0${i+1}</span><span class="category-name">${e(HOME_CATEGORY_LABELS[c])}</span><span class="category-count">${eligible(terms,c).length}<span>개</span></span><span class="radio-mark" aria-hidden="true"></span></label>`).join('')}</fieldset><div class="start-actions">${button(total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요','start','primary',!total.length?'disabled':'')}${button(`<span class="review-copy">틀 용어 복습 <span class="count">${unknown}</span></span>${arrow}`,'review','secondary')}</div></section></section>`,{wide:true});
+ main.querySelector('.home-intro').insertAdjacentHTML('beforeend',picklePrompt());
 }
 function begin(mode='normal',queue){
  if(mode==='normal'){
@@ -127,7 +138,7 @@ function finish(){
  const unknown=s.queue.filter(t=>s.ratings[t.id]==='unknown'),known=s.queue.length-unknown.length;
  const next=s.mode==='normal'?nextBatch(terms,state,s.scope):s.remaining;
  const allDone=s.mode==='normal'&&!next.length;
- render(`<section class="complete-panel"><img class="completion-image" src="./boongeoppang-complete.png" alt="완성된 붕어빵"><p class="eyebrow">오늘도 붕어빵 굽기 완료!</p><h1 tabindex="-1">${allDone?'한 바퀴 학습했어요.':'이번 학습을 마쳤어요.'}</h1><p class="muted">조금 더 익숙해진 용어가 생겼네요.</p><div class="result-stats"><div><span>확인한 카드</span><strong>${s.queue.length}<small>장</small></strong></div><div><span>알아요</span><strong>${known}<small>장</small></strong></div><div><span>몰라요</span><strong>${unknown.length}<small>장</small></strong></div></div><div class="complete-actions">${next.length?button(`${next.length<10?'남은 '+next.length+'장':'다음 10장'} 학습 ${arrow}`,'next'):allDone?button('처음부터 다시 학습','restart'):''}${unknown.length?button('이번에 모른 용어 복습','review-session',next.length||allDone?'secondary':'primary'):'<p class="muted">이번에 모른다고 표시한 용어가 없어요.</p>'}${button('처음으로','home','text-button')}</div><p class="storage-note">결과는 스스로 표시한 이해도예요.</p></section>`);
+ render(`<section class="complete-panel"><img class="completion-image" src="./boongeoppang-complete.png" alt="완성된 붕어빵"><p class="eyebrow">오늘도 붕어빵 굽기 완료!</p><h1 tabindex="-1">${allDone?'한 바퀴 학습했어요.':'이번 학습을 마쳤어요.'}</h1><p class="muted">조금 더 익숙해진 용어가 생겼네요.</p><div class="result-stats"><div><span>확인한 카드</span><strong>${s.queue.length}<small>장</small></strong></div><div><span>알아요</span><strong>${known}<small>장</small></strong></div><div><span>몰라요</span><strong>${unknown.length}<small>장</small></strong></div></div><div class="complete-actions">${unknown.length?button(`틀 용어 복습 ${arrow}`,'review-session',next.length||allDone?'secondary':'primary'):'<p class="muted">이번에 모른다고 표시한 용어가 없어요.</p>'}${next.length?button(`${next.length<10?'남은 '+next.length+'장':'다음 10장'} 학습 ${arrow}`,'next'):allDone?button('처음부터 다시 학습','restart'):''}${button('처음으로','home','text-button')}</div><p class="storage-note">결과는 스스로 표시한 이해도예요.</p></section>`);
 }
 async function userAccount(){
  session=null;dirty=false;
@@ -177,7 +188,7 @@ async function refresh(){
  render('<p class="loading">용어를 불러오는 중이에요.</p>');
  try{
   terms=await loadCatalog();const user=await currentUser();activeUser=user;setHeaderUser(user);
-  if(user){const saved=await loadStudyState();if(saved)state=saved;else await saveStudyState(state);}
+  if(user){const saved=await loadStudyState();if(saved)state=saved;else await saveStudyState(state);}else state=emptyState();
   if(location.hash.startsWith('#/admin'))await admin();else if(location.hash.startsWith('#/login'))await userAccount();else home();
  }catch(err){render(`<section class="empty-state"><h1 tabindex="-1">용어를 불러오지 못했어요.</h1><p>연결 상태를 확인하고 다시 시도해주세요.</p>${button('다시 시도','retry')}</section>`);}
 }
@@ -194,6 +205,7 @@ main.addEventListener('submit',async ev=>{
  }
 });
 main.addEventListener('click',async ev=>{
+ if(ev.target.matches('.pickle-prompt-dialog')){ev.target.close();return;}
  const target=ev.target.closest('[data-action]');
  if(!target){
   const card=ev.target.closest('.flashcard');
@@ -205,8 +217,10 @@ main.addEventListener('click',async ev=>{
  if(busy&&action!=='exit')return;
  switch(action){
   case 'home':if(canLeave()){dirty=false;if(location.hash!=='#/')location.hash='#/';else home();}break;
-   case 'start':if(requireUser())begin();break;
-   case 'review':if(requireUser())begin('review');break;
+   case 'show-pickle-prompt':main.querySelector('.pickle-prompt-dialog')?.showModal();break;
+   case 'close-pickle-prompt':target.closest('dialog')?.close();break;
+   case 'start':begin();break;
+   case 'review':begin('review');break;
   case 'flip':flipCard();break;
   case 'exit':session=null;home();break;
   case 'next':{const s=session;if(s.mode==='normal')begin();else begin('review',s.remaining);break;}
@@ -215,7 +229,7 @@ main.addEventListener('click',async ev=>{
   case 'retry':await refresh();break;
   case 'admin':await admin();break;
    case 'user-account':await userAccount();break;
-   case 'user-logout':await userLogout();activeUser=null;setHeaderUser(null);await userAccount();break;
+   case 'user-logout':await userLogout();activeUser=null;state=emptyState();setHeaderUser(null);await userAccount();break;
    case 'password-change':{
     const user=await currentUser();if(!user)break;
     target.disabled=true;try{await requestPasswordSetup(user.email);message('비밀번호 변경 메일을 보냈어요.');}catch(err){banner(err.message);}finally{target.disabled=false;}break;

@@ -7,7 +7,7 @@ const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8'
 const source=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
 const terms=core.normalizeCatalog(JSON.parse(await readFile(new URL('../public/terms.json',import.meta.url),'utf8')));
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function setup({cards=terms,state,hash='',motion=false,authenticated=true,cloudState=null}={}){
+async function setup({cards=terms,state,hash='',motion=false,authenticated=true,cloudState}={}){
  const win=new Window({url:'http://localhost:5174/'+hash,settings:{disableCSSFileLoading:true,disableJavaScriptFileLoading:true}});
  const animations=[];
  win.matchMedia=()=>({matches:!motion});
@@ -15,7 +15,7 @@ async function setup({cards=terms,state,hash='',motion=false,authenticated=true,
  win.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
  if(state!==undefined)win.localStorage.setItem(core.STORE_KEY,typeof state==='string'?state:JSON.stringify(state));
  win.scrollTo=()=>{};win.confirm=()=>true;win.alert=()=>{};let admin=false,saved=null;
- let user=authenticated?{uid:'approved-user',email:'approved@example.com',emailVerified:true}:null,passwordSetupEmail=null,savedCloudState=cloudState,deletionRequested=false;
+ let user=authenticated?{uid:'approved-user',email:'approved@example.com',emailVerified:true}:null,passwordSetupEmail=null,savedCloudState=cloudState===undefined?(state&&typeof state!=='string'?state:null):cloudState,deletionRequested=false;
  win.__deps={...core,e:core.escapeHtml,configured:true,loadCatalog:async()=>cards,currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},currentUser:async()=>user,userLogin:async email=>{user={uid:'approved-user',email,emailVerified:true};},requestPasswordSetup:async email=>{passwordSetupEmail=email;},userLogout:async()=>{user=null;},loadStudyState:async()=>savedCloudState,saveStudyState:async value=>{savedCloudState=value;},requestAccountDeletion:async()=>{deletionRequested=true;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
  const body=source.replace(/^import .*;\r?\n/gm,'');
  const bindings=Object.keys(win.__deps).join(',');
@@ -31,7 +31,7 @@ test('homepage shows actual category counts and 10-card session with bilingual t
  assert.equal(ui.doc.querySelectorAll('[data-action=known]').length,1);
  ui.click('flip');assert.equal(ui.doc.querySelector('.definition>p').textContent,terms[0].definition);
  ui.click('unknown');await wait(270);assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
- assert.equal(JSON.parse(ui.win.localStorage.getItem(core.STORE_KEY)).ratings[terms[0].id],'unknown');
+ assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
  }finally{ui.close();}
 });
 test('homepage shows Pickle copy and official Android and iOS download links',async()=>{
@@ -45,6 +45,14 @@ test('homepage shows Pickle copy and official Android and iOS download links',as
   assert.equal(links[1].href,'https://apps.apple.com/kr/app/id6795790129');
   assert.equal(links[0].querySelector('img').getAttribute('src'),'./google-play.svg');
   assert.equal(links[1].querySelector('img').getAttribute('src'),'./app-store.svg');
+  assert.equal(ui.doc.querySelector('.pickle-prompt-trigger').textContent,'피클에게 이렇게 요청해보세요');
+  ui.click('show-pickle-prompt');
+  const prompt=ui.doc.querySelector('.pickle-prompt-dialog');
+  assert.ok(prompt.open);
+  assert.match(prompt.textContent,/매주 월~금 저녁 9시에 전화로 단어 암기 테스트/);
+  assert.match(prompt.textContent,/https:\/\/realbeginnerr.github.io\/flashcards\//);
+  assert.match(prompt.textContent,/매일 단어 10개씩 질문한다/);
+  ui.click('close-pickle-prompt');assert.equal(prompt.open,false);
   assert.equal(ui.doc.querySelector('.sample'),null);
   assert.doesNotMatch(ui.doc.querySelector('.home-intro').textContent,/오늘, 이런 용어는 어때요|AI에게 작업 방법을 알려주는 지침 묶음/);
   assert.doesNotMatch(ui.doc.querySelector('.home-intro').textContent,/하루 열 장, 새로운 지식 한 조각|알 듯 말 듯한 용어|가입 없이 가볍게 시작/);
@@ -115,8 +123,12 @@ test('ten evaluations finish one batch and next starts at card eleven',async()=>
  assert.equal(ui.doc.querySelector('.completion-image').getAttribute('alt'),'완성된 붕어빵');
  assert.equal(ui.doc.querySelector('.complete-panel .eyebrow').textContent,'오늘도 붕어빵 굽기 완료!');
  assert.match(ui.doc.querySelector('.result-stats').textContent,/10/);
+ const completionButtons=[...ui.doc.querySelectorAll('.complete-actions>.btn:not(.text-button)')];
+ assert.deepEqual(completionButtons.map(button=>button.dataset.action),['review-session','next']);
+ assert.equal(completionButtons[0].textContent.trim(),'틀 용어 복습 ↗');
+ assert.equal(completionButtons[1].textContent.trim(),'다음 10장 학습 ↗');
  ui.click('next');assert.equal(ui.doc.querySelector('h1').textContent,terms[10].term);
- assert.equal(JSON.parse(ui.win.localStorage.getItem(core.STORE_KEY)).completed['전체'].length,10);
+ assert.equal(ui.cloudState().completed['전체'].length,10);
  }finally{ui.close();}
 });
 test('last batch is nine and restart preserves ratings',async()=>{
@@ -126,7 +138,7 @@ test('last batch is nine and restart preserves ratings',async()=>{
  for(let i=0;i<9;i++){ui.click('flip');ui.click('known');await wait(260);}
  assert.match(ui.doc.querySelector('h1').textContent,/한 바퀴/);ui.click('restart');
  assert.equal(ui.doc.querySelector('h1').textContent,terms[0].term);
- assert.equal(JSON.parse(ui.win.localStorage.getItem(core.STORE_KEY)).ratings[terms[0].id],'unknown');
+ assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
  }finally{ui.close();}
 });
 test('review uses only unknown IDs and known removes it on next visit',async()=>{
@@ -136,8 +148,8 @@ test('review uses only unknown IDs and known removes it on next visit',async()=>
  assert.match(ui.doc.querySelector('h1').textContent,/모르는 용어가 아직 없어요/);
  }finally{ui.close();}
 });
-test('corrupt storage is preserved while learning continues',async()=>{
- const ui=await setup({state:'{broken'});try{assert.match(ui.doc.querySelector('#notice').textContent,/기존 기록은 보존/);ui.click('start');ui.click('flip');ui.click('known');await wait(270);assert.equal(ui.win.localStorage.getItem(core.STORE_KEY),'{broken');}finally{ui.close();}
+test('guest ignores browser records and can still study without persistence',async()=>{
+ const ui=await setup({state:'{broken',authenticated:false});try{assert.equal(ui.doc.querySelector('#notice').textContent,'');ui.click('start');ui.click('flip');ui.click('known');await wait(270);assert.equal(ui.win.localStorage.getItem(core.STORE_KEY),'{broken');assert.equal(ui.cloudState(),null);}finally{ui.close();}
 });
 test('HTML in term data is text, not executable markup',async()=>{
  const cards=[{...terms[0],term:'<img src=x onerror=alert(1)>',definition:'<script>alert(1)</script>',englishTerm:''}];
@@ -212,8 +224,8 @@ test('known and unknown both slide current card upward and next card from below 
    ui.click(rating);assert.equal(ui.animations.length,3);
    assert.match(ui.animations[2].keyframes[1].transform,/-110%/);
    assert.equal(ui.doc.querySelector('h1').textContent,terms[0].term);
-   ui.click(rating);ui.doc.querySelector('.flashcard').click();assert.equal(ui.animations.length,3);
-   assert.equal(JSON.parse(ui.win.localStorage.getItem(core.STORE_KEY)).ratings[terms[0].id],rating);
+   ui.click(rating);ui.doc.querySelector('.flashcard').click();assert.equal(ui.animations.length,3);await wait(5);
+   assert.equal(ui.cloudState().ratings[terms[0].id],rating);
    ui.animations[2].finish();await wait(5);
    assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
    assert.match(ui.animations[3].keyframes[0].transform,/100%/);
@@ -229,7 +241,7 @@ test('exit during outgoing slide keeps saved rating without resurrecting next ca
   ui.click('start');ui.click('flip');ui.animations[0].finish();await wait(5);ui.animations[1].finish();await wait(5);
   ui.click('known');ui.click('exit');ui.animations[2].finish();await wait(5);
   assert.equal(ui.doc.querySelector('.flashcard'),null);
-  assert.equal(JSON.parse(ui.win.localStorage.getItem(core.STORE_KEY)).ratings[terms[0].id],'known');
+  assert.equal(ui.cloudState().ratings[terms[0].id],'known');
  }finally{ui.close();}
 });
 test('last card slides out before completion, with no nonexistent next card',async()=>{
@@ -259,7 +271,7 @@ test('both ratings work on the front without flipping',async()=>{
    ui.click('start');assert.ok(ui.doc.querySelector('.flashcard.front'));
    ui.click(value);await wait(5);
    assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
-   assert.equal(JSON.parse(ui.win.localStorage.getItem(core.STORE_KEY)).ratings[terms[0].id],value);
+   assert.equal(ui.cloudState().ratings[terms[0].id],value);
   }finally{ui.close();}
  }
 });
@@ -270,7 +282,7 @@ test('logo returns home after completing ten cards even when URL is already home
   assert.ok(ui.doc.querySelector('.complete-panel'));
   ui.doc.querySelector('.brand-mark').click();await wait(35);
   assert.ok(ui.doc.querySelector('.start-panel'));assert.equal(ui.doc.querySelector('.complete-panel'),null);
-  assert.equal(JSON.parse(ui.win.localStorage.getItem(core.STORE_KEY)).completed['전체'].length,10);
+  assert.equal(ui.cloudState().completed['전체'].length,10);
  }finally{ui.close();}
 });
 test('logo navigates home even when default link navigation is intercepted',async()=>{
@@ -299,4 +311,13 @@ test('dedicated logo home control does not depend on hosting-rewritten hrefs',as
    assert.ok(ui.doc.querySelector('.start-panel'));assert.equal(ui.doc.querySelector('.flashcard'),null);
   }finally{ui.close();}
  }
+});
+test('review button has left-aligned copy, count, and a trailing arrow',async()=>{
+ const ui=await setup();try{
+  const review=ui.doc.querySelector('[data-action="review"]');
+  assert.ok(review.querySelector('.review-copy'));
+  assert.match(review.textContent,/틀 용어 복습/);
+  assert.ok(review.querySelector('.count'));
+  assert.equal(review.querySelector('[aria-hidden="true"]').textContent,'↗');
+ }finally{ui.close();}
 });
