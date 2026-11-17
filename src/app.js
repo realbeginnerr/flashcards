@@ -37,13 +37,81 @@ function empty(title,description){session=null;render(`<section class="empty-sta
 function study(){
  const s=session;if(!s)return home();const term=s.queue[s.index];if(!term)return finish();
  const english=bilingual(term);const name=s.mode==='normal'?s.scope+' 학습':'모르는 용어 복습';
- render(`<section class="study-shell"><div class="study-toolbar">${button('학습 종료','exit','text-button')}<span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="progress" role="progressbar" aria-label="이번 회차에서 확인한 카드" aria-valuenow="${s.index}" aria-valuemin="0" aria-valuemax="${s.queue.length}"><span style="width:${s.index/s.queue.length*100}%"></span></div><article class="flashcard ${s.back?'back':'front'}">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`<div class="definition"><h2>뜻</h2><p class="preserve">${e(term.definition)}</p>${term.explanation?`<p class="preserve">${e(term.explanation)}</p>`:''}${term.example?`<div class="example"><h2>이렇게 쓰여요</h2><div class="preserve ${term.example.includes('flowchart ')||term.term==='스킬'?'code-example':''}">${e(term.example)}</div></div>`:''}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div><div class="flip-back">${button('용어 다시 보기','flip','text-button')}</div>`:`<div class="front-bottom"><p>정확히 몰라도 괜찮아요.<br>떠오르는 뜻을 생각해본 뒤 확인하세요.</p>${button('설명 보기 '+arrow,'flip')}</div>`}</article>${s.back?`<div class="rating-dock"><p>이 용어, 이제 어느 정도 알겠나요?</p><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div>`:`<p class="study-caption">한 장씩 천천히, 기억에 남을 때까지.</p>`}</section>`);
+ render(`<section class="study-shell ${s.back?'is-back':''}"><div class="study-toolbar"><span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="progress" role="progressbar" aria-label="이번 회차에서 확인한 카드" aria-valuenow="${s.index}" aria-valuemin="0" aria-valuemax="${s.queue.length}"><span style="width:${s.index/s.queue.length*100}%"></span></div><article class="flashcard ${s.back?'back':'front'}" tabindex="0" aria-label="학습 카드. 클릭하거나 Enter 또는 Space 키로 앞뒤를 전환할 수 있어요.">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`<div class="definition"><p class="preserve">${e(term.definition)}</p>${term.explanation?`<p class="preserve">${e(term.explanation)}</p>`:''}${term.example?`<div class="example"><h2>이렇게 쓰여요</h2><div class="preserve ${term.example.includes('flowchart ')||term.term==='스킬'?'code-example':''}">${e(term.example)}</div></div>`:''}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div>`:``}</article><div class="rating-dock"><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div><div class="card-footer"><p class="study-caption">카드를 누르면 앞뒤로 계속 확인할 수 있어요.</p>${button('학습 종료','exit','text-button')}</div></section>`);
 }
-function evaluate(value){
- if(busy||!session?.back||session.done)return;busy=true;
- const s=session,term=s.queue[s.index];state=rate(state,term.id,value);s.ratings[term.id]=value;persist();
- s.index++;s.back=false;if(s.index===s.queue.length)finish();else study();
- setTimeout(()=>busy=false,250);
+let flipping=false;
+async function flipCard(){
+ if(!session||session.done||flipping||busy)return;
+ const active=session,card=main.querySelector('.flashcard');
+ const focusCard=()=>requestAnimationFrame(()=>main.querySelector('.flashcard')?.focus({preventScroll:true}));
+ const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(reduced||!card?.animate){session.back=!session.back;study();focusCard();return;}
+ flipping=true;
+ const direction=active.back?-1:1;
+ try{
+  card.setAttribute('aria-busy','true');
+  await card.animate([
+   {transform:'perspective(1200px) rotateY(0deg)'},
+   {transform:`perspective(1200px) rotateY(${direction*90}deg)`}
+  ],{duration:160,easing:'ease-in',fill:'forwards'}).finished;
+  if(session!==active||!card.isConnected)return;
+  active.back=!active.back;study();
+  const next=main.querySelector('.flashcard');
+  next.setAttribute('aria-busy','true');
+  await next.animate([
+   {transform:`perspective(1200px) rotateY(${-direction*90}deg)`},
+   {transform:'perspective(1200px) rotateY(0deg)'}
+  ],{duration:180,easing:'ease-out'}).finished;
+  if(session===active&&next.isConnected){next.removeAttribute('aria-busy');focusCard();}
+ }catch{
+  // A navigation or animation cancellation must never leave a card edge-on.
+  if(session===active&&main.querySelector('.flashcard')){study();focusCard();}
+ }finally{flipping=false;}
+}
+main.addEventListener('keydown',ev=>{
+ if(ev.target.matches('.flashcard')&&['Enter',' '].includes(ev.key)){
+  ev.preventDefault();flipCard();
+ }
+});
+async function evaluate(value){
+ if(busy||flipping||!session||session.done)return;
+ busy=true;
+ const active=session,term=active.queue[active.index],card=main.querySelector('.flashcard');
+ state=rate(state,term.id,value);active.ratings[term.id]=value;persist();
+ let advanced=false;
+ const advance=()=>{
+  if(advanced||session!==active)return false;
+  advanced=true;active.index++;active.back=false;
+  if(active.index===active.queue.length)finish();else study();
+  return true;
+ };
+ const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ try{
+  if(reduced||!card?.animate){advance();return;}
+  card.setAttribute('aria-busy','true');
+  await card.animate([
+   {transform:'translateY(0)',opacity:1},
+   {transform:'translateY(-110%)',opacity:0}
+  ],{duration:240,easing:'cubic-bezier(.4,0,.8,.4)',fill:'forwards'}).finished;
+  if(!advance())return;
+  const next=main.querySelector('.flashcard')||main.querySelector('.complete-panel');
+  if(!next)return;
+  next.setAttribute('aria-busy','true');
+  await next.animate([
+   {transform:'translateY(100%)',opacity:0},
+   {transform:'translateY(0)',opacity:1}
+  ],{duration:280,easing:'cubic-bezier(.16,1,.3,1)'}).finished;
+  if(session===active&&next.isConnected){
+   next.removeAttribute('aria-busy');
+   next.querySelector('h1')?.focus({preventScroll:true});
+  }
+ }catch{
+  if(session===active){
+   if(!advanced)advance();
+   else if(active.done)finish();
+   else study();
+  }
+ }finally{busy=false;}
 }
 function finish(){
  const s=session;s.done=true;
@@ -89,14 +157,20 @@ main.addEventListener('change',ev=>{if(ev.target.name==='scope'){scope=ev.target
 main.addEventListener('input',ev=>{if(ev.target.id==='term-search'){search=ev.target.value;filterList();}if(ev.target.closest('#term-form'))dirty=true;});
 main.addEventListener('submit',ev=>{if(ev.target.id==='term-form'){ev.preventDefault();saveForm(ev.target);}});
 main.addEventListener('click',async ev=>{
- const target=ev.target.closest('[data-action]');if(!target||target.disabled)return;const action=target.dataset.action;
+ const target=ev.target.closest('[data-action]');
+ if(!target){
+  const card=ev.target.closest('.flashcard');
+  if(card&&!ev.target.closest('a,button,input,textarea,select,summary,details')&&!window.getSelection()?.toString())flipCard();
+  return;
+ }
+ if(target.disabled)return;const action=target.dataset.action;
  if(['known','unknown'].includes(action))return evaluate(action);
- if(busy)return;
+ if(busy&&action!=='exit')return;
  switch(action){
   case 'home':if(canLeave()){dirty=false;if(location.hash!=='#/')location.hash='#/';else home();}break;
   case 'start':begin();break;
   case 'review':begin('review');break;
-  case 'flip':session.back=!session.back;study();break;
+  case 'flip':flipCard();break;
   case 'exit':session=null;home();break;
   case 'next':{const s=session;if(s.mode==='normal')begin();else begin('review',s.remaining);break;}
   case 'restart':state=resetScope(state,scope);persist();begin();break;
@@ -115,5 +189,24 @@ main.addEventListener('click',async ev=>{
 });
 window.addEventListener('beforeunload',ev=>{if(dirty){ev.preventDefault();ev.returnValue='';}});
 window.addEventListener('hashchange',()=>{if(dirty&&!canLeave()){history.replaceState(null,'','#/admin');return;}dirty=false;location.hash.startsWith('#/admin')?admin():home();});
-document.addEventListener('click',ev=>{const link=ev.target.closest('a[href^="#/"]');if(link&&dirty&&!canLeave())ev.preventDefault();});
+document.addEventListener('click',ev=>{
+ const link=ev.target.closest('a[href]');
+ if(!link||ev.button!==0||ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.altKey||link.target==='_blank'||link.hasAttribute('download'))return;
+ const destination=new URL(link.href,location.href);
+ const homeControl=link.matches('.site-header .brand');
+ if(!homeControl&&(destination.origin!==location.origin||destination.pathname!==location.pathname||!['#/','#/admin'].includes(destination.hash)))return;
+ const route=homeControl?'#/':destination.hash;
+ // Explicitly handle application navigation, even when a host intercepts the
+ // anchor default action or rewrites its href to an absolute same-site URL.
+ ev.preventDefault();
+ if(dirty&&!canLeave())return;
+ dirty=false;
+ if(location.hash!==route)history.pushState(null,'',route);
+ route==='#/admin'?admin():home();
+},true);
+window.addEventListener('popstate',()=>{
+ if(dirty&&!canLeave())return;
+ dirty=false;location.hash.startsWith('#/admin')?admin():home();
+});
+
 refresh();
