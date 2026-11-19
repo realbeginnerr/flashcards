@@ -14,24 +14,39 @@ async function setup({cards=terms,state,hash='',motion=false,authenticated=true,
  if(motion)win.HTMLElement.prototype.animate=function(keyframes,options){let resolve;const finished=new Promise(r=>resolve=r);animations.push({keyframes,options,finish:resolve});return {finished};};
  win.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
  if(state!==undefined)win.localStorage.setItem(core.STORE_KEY,typeof state==='string'?state:JSON.stringify(state));
- win.scrollTo=()=>{};win.confirm=()=>true;win.alert=()=>{};let admin=false,saved=null;
+ win.scrollTo=()=>{};win.confirm=()=>true;win.alert=()=>{};let admin=false,saved=null,clipboardText='';
+ Object.defineProperty(win.navigator,'clipboard',{configurable:true,value:{writeText:async text=>{clipboardText=text;}}});
  let user=authenticated?{uid:'approved-user',email:'approved@example.com',emailVerified:true}:null,passwordSetupEmail=null,savedCloudState=cloudState===undefined?(state&&typeof state!=='string'?state:null):cloudState,deletionRequested=false;
  win.__deps={...core,e:core.escapeHtml,configured:true,loadCatalog:async()=>cards,currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},currentUser:async()=>user,userLogin:async email=>{user={uid:'approved-user',email,emailVerified:true};},requestPasswordSetup:async email=>{passwordSetupEmail=email;},userLogout:async()=>{user=null;},loadStudyState:async()=>savedCloudState,saveStudyState:async value=>{savedCloudState=value;},requestAccountDeletion:async()=>{deletionRequested=true;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
  const body=source.replace(/^import .*;\r?\n/gm,'');
  const bindings=Object.keys(win.__deps).join(',');
  win.eval(`{ const {${bindings}} = window.__deps; ${body} }`);
  await wait(35);
- return {win,doc:win.document,animations,click(action){const el=win.document.querySelector(`[data-action="${action}"]`) || (action==='flip'?win.document.querySelector('.flashcard'):null);assert.ok(el,`button ${action}`);el.click();},saved:()=>saved,passwordSetupEmail:()=>passwordSetupEmail,cloudState:()=>savedCloudState,deletionRequested:()=>deletionRequested,close:()=>win.close()};
+ return {win,doc:win.document,animations,click(action){const el=win.document.querySelector(`[data-action="${action}"]`) || (action==='flip'?win.document.querySelector('.flashcard'):null);assert.ok(el,`button ${action}`);el.click();},saved:()=>saved,passwordSetupEmail:()=>passwordSetupEmail,cloudState:()=>savedCloudState,deletionRequested:()=>deletionRequested,clipboardText:()=>clipboardText,close:()=>win.close()};
 }
 test('homepage shows actual category counts and 10-card session with bilingual term',async()=>{
  const ui=await setup();try{
  assert.match(ui.doc.body.textContent,/239/);assert.match(ui.doc.body.textContent,/145/);
  ui.click('start');assert.match(ui.doc.querySelector('.numeric').textContent,/1.*10/);
  assert.equal(ui.doc.querySelector('h1').textContent,terms[0].term);assert.equal(ui.doc.querySelector('.english').textContent,terms[0].englishTerm);
+ assert.equal(ui.doc.querySelector('.mention-frequency').getAttribute('aria-label'),`회의와 프로젝트 문서 언급 빈도 ${terms[0].importance}점`);
+ assert.equal(ui.doc.querySelector('.mention-frequency').textContent,'★'.repeat(terms[0].importance)+'☆'.repeat(5-terms[0].importance));
  assert.equal(ui.doc.querySelectorAll('[data-action=known]').length,1);
  ui.click('flip');assert.equal(ui.doc.querySelector('.definition>p').textContent,terms[0].definition);
  ui.click('unknown');await wait(270);assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
  assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
+ }finally{ui.close();}
+});
+test('card back renders meaning and two examples as separate paragraphs',async()=>{
+ const structured=terms.find(term=>term.explanation&&term.example);
+ const ui=await setup({cards:[structured]});
+ try{
+  ui.click('start');
+  ui.click('flip');
+  const paragraphs=[...ui.doc.querySelectorAll('.definition>p')];
+  assert.equal(paragraphs.length,3);
+  assert.deepEqual(paragraphs.map(node=>node.textContent),[structured.definition,structured.explanation,structured.example]);
+  assert.equal(ui.doc.querySelector('.example'),null);
  }finally{ui.close();}
 });
 test('homepage shows Pickle copy and official Android and iOS download links',async()=>{
@@ -52,6 +67,10 @@ test('homepage shows Pickle copy and official Android and iOS download links',as
   assert.match(prompt.textContent,/매주 월~금 저녁 9시에 전화로 단어 암기 테스트/);
   assert.match(prompt.textContent,/https:\/\/realbeginnerr.github.io\/flashcards\//);
   assert.match(prompt.textContent,/매일 단어 10개씩 질문한다/);
+  assert.ok(prompt.querySelector('.prompt-copy-button .copy-icon'));
+  ui.click('copy-pickle-prompt');await wait(0);
+  assert.match(ui.clipboardText(),/매주 월~금 저녁 9시에 전화로 단어 암기 테스트/);
+  assert.ok(prompt.querySelector('.prompt-copy-button').classList.contains('copied'));
   ui.click('close-pickle-prompt');assert.equal(prompt.open,false);
   assert.equal(ui.doc.querySelector('.sample'),null);
   assert.doesNotMatch(ui.doc.querySelector('.home-intro').textContent,/오늘, 이런 용어는 어때요|AI에게 작업 방법을 알려주는 지침 묶음/);
@@ -121,11 +140,11 @@ test('ten evaluations finish one batch and next starts at card eleven',async()=>
  assert.match(ui.doc.querySelector('h1').textContent,/学習|학습/);
  assert.equal(ui.doc.querySelector('.completion-image').getAttribute('src'),'./boongeoppang-complete.png');
  assert.equal(ui.doc.querySelector('.completion-image').getAttribute('alt'),'완성된 붕어빵');
- assert.equal(ui.doc.querySelector('.complete-panel .eyebrow').textContent,'오늘도 붕어빵 굽기 완료!');
+ assert.equal(ui.doc.querySelector('.complete-panel .eyebrow'),null);
  assert.match(ui.doc.querySelector('.result-stats').textContent,/10/);
  const completionButtons=[...ui.doc.querySelectorAll('.complete-actions>.btn:not(.text-button)')];
  assert.deepEqual(completionButtons.map(button=>button.dataset.action),['review-session','next']);
- assert.equal(completionButtons[0].textContent.trim(),'틀 용어 복습 ↗');
+ assert.equal(completionButtons[0].textContent.trim(),'틀린 용어 복습 ↗');
  assert.equal(completionButtons[1].textContent.trim(),'다음 10장 학습 ↗');
  ui.click('next');assert.equal(ui.doc.querySelector('h1').textContent,terms[10].term);
  assert.equal(ui.cloudState().completed['전체'].length,10);
@@ -164,7 +183,7 @@ test('admin Google login leads to list and shared editor validates categories',a
  assert.match(ui.doc.querySelector('#category-error').textContent,/하나 이상/);assert.equal(ui.saved(),null);
  form.querySelector('[name=categories]').checked=true;
  form.dispatchEvent(new ui.win.Event('submit',{bubbles:true,cancelable:true}));await wait(35);
- assert.equal(ui.saved().term,'새 용어');assert.equal(ui.saved().categories.length,1);
+ assert.equal(ui.saved().term,'새 용어');assert.equal(ui.saved().categories.length,1);assert.equal(ui.saved().importance,3);
  }finally{ui.close();}
 });
 test('clicking either card face repeatedly flips without rating or advancing',async()=>{
@@ -316,7 +335,7 @@ test('review button has left-aligned copy, count, and a trailing arrow',async()=
  const ui=await setup();try{
   const review=ui.doc.querySelector('[data-action="review"]');
   assert.ok(review.querySelector('.review-copy'));
-  assert.match(review.textContent,/틀 용어 복습/);
+  assert.match(review.textContent,/틀린 용어 복습/);
   assert.ok(review.querySelector('.count'));
   assert.equal(review.querySelector('[aria-hidden="true"]').textContent,'↗');
  }finally{ui.close();}

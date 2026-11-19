@@ -13,8 +13,8 @@ service cloud.firestore {
     }
     function validTerm() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['id','term','englishTerm','definition','explanation','example','categories','sources','revision','position','updatedAt'])
-        && d.keys().hasAll(['id','term','englishTerm','definition','explanation','example','categories','sources','revision','position','updatedAt'])
+      return d.keys().hasOnly(['id','term','englishTerm','definition','explanation','example','categories','importance','sources','revision','position','updatedAt'])
+        && d.keys().hasAll(['id','term','englishTerm','definition','explanation','example','categories','importance','sources','revision','position','updatedAt'])
         && d.id is string && d.id.size() > 0 && d.id.size() <= 160
         && d.term is string && d.term.size() > 0 && d.term.size() <= 200
         && d.englishTerm is string && d.englishTerm.size() <= 500
@@ -23,6 +23,7 @@ service cloud.firestore {
         && d.example is string && d.example.size() <= 20000
         && d.categories is list && d.categories.size() > 0 && d.categories.size() <= 5
         && d.categories.hasOnly(['UX/UI 디자인','피그마','개발','AI 툴','마케팅'])
+        && d.importance is int && d.importance >= 1 && d.importance <= 5
         && d.sources is list && d.sources.size() <= 20
         && d.position is number && d.revision is int && d.revision > 0
         && d.updatedAt == request.time;

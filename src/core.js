@@ -25,7 +25,8 @@ export function normalizeTerm(term){
  if(!term||typeof term!=='object'||Array.isArray(term))throw new Error('용어 형식이 올바르지 않습니다.');
  const text=(v,max)=>typeof v==='string'?v.trim().slice(0,max):'';
  const categories=unique((Array.isArray(term.categories)?term.categories:[]).filter(c=>CATEGORIES.includes(c)));
- const result={id:text(term.id,160),term:text(term.term,200),englishTerm:text(term.englishTerm,500),definition:text(term.definition,20000),explanation:text(term.explanation,20000),example:text(term.example,20000),categories,sources:[]};
+ const importance=Number.isInteger(term.importance)&&term.importance>=1&&term.importance<=5?term.importance:1;
+ const result={id:text(term.id,160),term:text(term.term,200),englishTerm:text(term.englishTerm,500),definition:text(term.definition,20000),explanation:text(term.explanation,20000),example:text(term.example,20000),categories,importance,sources:[]};
  if(!result.id||!result.term||!result.definition||!categories.length)throw new Error('용어명, 뜻, 분야를 확인해주세요.');
  result.sources=(Array.isArray(term.sources)?term.sources:[]).filter(s=>s&&typeof s.url==='string'&&/^https?:\/\//i.test(s.url)).map(s=>({title:text(s.title,300)||'참고 자료',url:s.url})).slice(0,20);
  return result;

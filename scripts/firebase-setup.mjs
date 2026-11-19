@@ -37,4 +37,26 @@ if(mode==='inspect'){
  }));
  const result=await api(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents:commit`,{method:'POST',body:JSON.stringify({writes})});
  console.log(JSON.stringify({updated:result.writeResults.length,commitTime:result.commitTime}));
+}else if(mode==='sync-catalog'){
+ const terms=JSON.parse(await readFile('public/terms.json','utf8'));
+ if(terms.length!==239||terms.some(term=>!Number.isInteger(term.importance)||term.importance<1||term.importance>5))throw new Error('Catalog validation failed.');
+ const docs=[];let pageToken='';
+ do{
+  const query=new URLSearchParams({pageSize:'300', ...(pageToken?{pageToken}:{})});
+  const page=await api(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/terms?${query}`);
+  docs.push(...(page.documents||[]));pageToken=page.nextPageToken||'';
+ }while(pageToken);
+ const existing=new Map(docs.map(doc=>[doc.name.split('/').at(-1),doc]));
+ if(existing.size!==terms.length||terms.some(term=>!existing.has(term.id)))throw new Error(`Live catalog mismatch: expected ${terms.length}, found ${existing.size}.`);
+ const value=v=>typeof v==='string'?{stringValue:v}:typeof v==='number'?{integerValue:String(v)}:Array.isArray(v)?{arrayValue:{values:v.map(value)}}:{mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,value(x)]))}};
+ const fields=['id','term','englishTerm','definition','explanation','example','categories','importance','sources','position','revision'];
+ const writes=terms.map((term,index)=>{
+  const old=existing.get(term.id).fields||{};
+  const position=Number(old.position?.integerValue??index);
+  const revision=Number(old.revision?.integerValue??0)+1;
+  const data={...term,position,revision};
+  return {update:{name:`projects/${project}/databases/(default)/documents/terms/${term.id}`,fields:Object.fromEntries(Object.entries(data).map(([key,item])=>[key,value(item)]))},updateMask:{fieldPaths:fields},updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}],currentDocument:{exists:true}};
+ });
+ const result=await api(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents:commit`,{method:'POST',body:JSON.stringify({writes})});
+ console.log(JSON.stringify({updated:result.writeResults.length,mentionFrequencyUpdated:terms.length,commitTime:result.commitTime}));
 }else throw new Error('Unknown setup mode.');
