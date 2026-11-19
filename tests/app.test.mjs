@@ -106,7 +106,7 @@ test('card back renders example labels as same-size bold subheadings above their
   assert.deepEqual(examples.map(node=>node.querySelector('h2').textContent),['업무 관련 예시','상황 예시']);
   assert.deepEqual(examples.map(node=>node.querySelector('p').textContent),[structured.explanation.replace(/^\(업무 관련 예시\)\s*/,''),structured.example.replace(/^\(상황 예시\)\s*/,'')]);
   assert.equal(ui.doc.querySelector('.example'),null);
-  assert.match(styles,/\.back \.term-heading\{border-bottom:0\}/);
+  assert.match(styles,/\.back \.term-heading\{border-bottom:0;padding-bottom:0;margin-bottom:20px\}/);
   assert.match(styles,/\.definition-example h2\{[^}]*font-size:inherit;[^}]*font-weight:600/);
  }finally{ui.close();}
 });
