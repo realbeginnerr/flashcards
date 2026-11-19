@@ -35,8 +35,8 @@
 
 .front{display:flex;flex-direction:column}.front-bottom{margin-top:auto;align-items:flex-end;text-align:right}.flip-hint{display:inline-flex;align-items:center;gap:8px;color:#6b786e;font-size:13px;font-weight:400}.flip-hint>span{font-size:18px;line-height:1}
 
-/* Keep the exit action in the design-system destructive color on both faces. */
-.study-shell .card-footer [data-action="exit"]{color:var(--destructive)}
+/* Keep the secondary exit action quieter than the study card content. */
+.study-shell .card-footer [data-action="exit"]{color:var(--ink)}
 
 .card-footer{display:flex;align-items:center;justify-content:flex-start;margin-top:12px}.card-footer .text-button{flex:none;padding:0;white-space:nowrap;text-decoration:none}.flashcard+.rating-dock{margin-top:12px}
 .rating-dock{border-top:0}

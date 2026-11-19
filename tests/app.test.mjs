@@ -304,6 +304,8 @@ test('rating dock occupies the same position after the card on both faces',async
    assert.equal(card.nextElementSibling.nextElementSibling.className,'card-footer');
    assert.equal(ui.doc.querySelector('.study-caption'),null);
    assert.equal(ui.doc.querySelector('.card-footer').firstElementChild.dataset.action,'exit');
+   assert.match(styles,/\.study-shell \.card-footer \[data-action="exit"\]\{color:var\(--ink\)\}/);
+   assert.doesNotMatch(styles,/\.study-shell \.card-footer \[data-action="exit"\]\{color:var\(--destructive\)\}/);
    assert.equal(ui.doc.body.textContent.includes('카드를 누르면 앞뒤로 계속 확인할 수 있어요.'),false);
    assert.equal(ui.doc.body.textContent.includes('이 용어, 이제 어느 정도 아세요?'),false);
    assert.deepEqual([...ui.doc.querySelectorAll('.rating-dock button')].map(b=>b.textContent),['몰라요','알아요']);
