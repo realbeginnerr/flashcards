@@ -7,6 +7,7 @@ test('239 valid cards, stable unique IDs, no deleted IA card',()=>{
  assert.equal(terms.length,239);assert.equal(new Set(terms.map(t=>t.id)).size,239);assert.ok(!terms.some(t=>t.id==='glossary-r151'));
  assert.equal(terms.filter(t=>t.id.startsWith('glossary-r011')).length,2);
  assert.ok(terms.every(t=>Number.isInteger(t.importance)&&t.importance>=1&&t.importance<=5));
+ assert.equal(terms.filter(t=>t.imageUrl).length,21);assert.ok(terms.every(t=>!t.imageUrl||/^https?:\/\//.test(t.imageUrl)));
 });
 test('review workbook meaning structure and mention frequency are preserved',()=>{
  assert.equal(terms.filter(term=>term.explanation&&term.example).length,221);

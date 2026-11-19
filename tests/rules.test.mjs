@@ -5,7 +5,7 @@ import {doc,setDoc,getDoc,deleteDoc,serverTimestamp} from 'firebase/firestore';
 let env;
 before(async()=>{env=await initializeTestEnvironment({projectId:'demo-boongeok',firestore:{rules:await readFile(new URL('../firestore.rules',import.meta.url),'utf8')}});});
 after(async()=>{await env?.cleanup();});
-const value=(id,revision=1)=>({id,term:'권한 테스트',englishTerm:'Test',definition:'테스트용 뜻',explanation:'',example:'',categories:['개발'],importance:3,sources:[],position:0,revision,updatedAt:serverTimestamp()});
+const value=(id,revision=1)=>({id,term:'권한 테스트',englishTerm:'Test',imageUrl:'',definition:'테스트용 뜻',explanation:'',example:'',categories:['개발'],importance:3,sources:[],position:0,revision,updatedAt:serverTimestamp()});
 test('anonymous visitor can read but cannot create or delete',async()=>{
  const db=env.unauthenticatedContext().firestore();
  await assertSucceeds(getDoc(doc(db,'terms','anonymous-probe')));
@@ -32,6 +32,7 @@ test('administrator still cannot save missing definition, invalid category or mi
  await assertFails(setDoc(doc(db,'terms','invalid-probe'),{...value('invalid-probe'),definition:''}));
  await assertFails(setDoc(doc(db,'terms','invalid-probe'),{...value('invalid-probe'),categories:['other']}));
  await assertFails(setDoc(doc(db,'terms','invalid-importance'),{...value('invalid-importance'),importance:6}));
+ await assertFails(setDoc(doc(db,'terms','invalid-image'),{...value('invalid-image'),imageUrl:'javascript:alert(1)'}));
  await assertFails(setDoc(doc(db,'terms','invalid-probe'),value('different-id')));
 });
 test('verified user can store only their own study state',async()=>{

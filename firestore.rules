@@ -13,11 +13,13 @@ service cloud.firestore {
     }
     function validTerm() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['id','term','englishTerm','definition','explanation','example','categories','importance','sources','revision','position','updatedAt'])
-        && d.keys().hasAll(['id','term','englishTerm','definition','explanation','example','categories','importance','sources','revision','position','updatedAt'])
+      return d.keys().hasOnly(['id','term','englishTerm','imageUrl','definition','explanation','example','categories','importance','sources','revision','position','updatedAt'])
+        && d.keys().hasAll(['id','term','englishTerm','imageUrl','definition','explanation','example','categories','importance','sources','revision','position','updatedAt'])
         && d.id is string && d.id.size() > 0 && d.id.size() <= 160
         && d.term is string && d.term.size() > 0 && d.term.size() <= 200
         && d.englishTerm is string && d.englishTerm.size() <= 500
+        && d.imageUrl is string && d.imageUrl.size() <= 2000
+        && (d.imageUrl == '' || d.imageUrl.matches('https?://.*'))
         && d.definition is string && d.definition.size() > 0 && d.definition.size() <= 20000
         && d.explanation is string && d.explanation.size() <= 20000
         && d.example is string && d.example.size() <= 20000

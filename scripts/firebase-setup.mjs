@@ -49,7 +49,7 @@ if(mode==='inspect'){
  const existing=new Map(docs.map(doc=>[doc.name.split('/').at(-1),doc]));
  if(existing.size!==terms.length||terms.some(term=>!existing.has(term.id)))throw new Error(`Live catalog mismatch: expected ${terms.length}, found ${existing.size}.`);
  const value=v=>typeof v==='string'?{stringValue:v}:typeof v==='number'?{integerValue:String(v)}:Array.isArray(v)?{arrayValue:{values:v.map(value)}}:{mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,value(x)]))}};
- const fields=['id','term','englishTerm','definition','explanation','example','categories','importance','sources','position','revision'];
+ const fields=['id','term','englishTerm','imageUrl','definition','explanation','example','categories','importance','sources','position','revision'];
  const writes=terms.map((term,index)=>{
   const old=existing.get(term.id).fields||{};
   const position=Number(old.position?.integerValue??index);

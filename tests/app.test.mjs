@@ -110,6 +110,18 @@ test('card back renders example labels as same-size bold subheadings above their
   assert.match(styles,/\.definition-example h2\{[^}]*font-size:inherit;[^}]*font-weight:600/);
  }finally{ui.close();}
 });
+test('card back places workbook reference media between English label and definition',async()=>{
+ for(const [term,selector] of [[terms.find(item=>item.imageUrl&&!/\.mp4(?:[?#]|$)/i.test(item.imageUrl)),'img.term-reference-media'],[terms.find(item=>/\.mp4(?:[?#]|$)/i.test(item.imageUrl)),'video.term-reference-media']]){
+  const ui=await setup({cards:[term]});try{
+   ui.click('start');assert.equal(ui.doc.querySelector('.term-reference-media'),null);
+   ui.click('flip');const media=ui.doc.querySelector(selector);
+   assert.ok(media);assert.equal(media.previousElementSibling.className,'term-heading');assert.equal(media.nextElementSibling.className,'definition');
+   if(media.tagName==='IMG'){assert.equal(media.getAttribute('loading'),'lazy');assert.equal(media.alt,`${term.term} 참고 이미지`);}
+   else assert.equal(media.getAttribute('preload'),'metadata');
+  }finally{ui.close();}
+ }
+ assert.match(styles,/\.term-reference-media\{[^}]*margin:0 0 20px/);
+});
 test('category tags and mention-frequency stars use the same top row on both faces',async()=>{
  const ui=await setup();try{
   ui.click('start');
@@ -122,19 +134,18 @@ test('category tags and mention-frequency stars use the same top row on both fac
   assert.doesNotMatch(styles,/\.front>\.tags/);
  }finally{ui.close();}
 });
-test('homepage shows Pickle copy and official Android and iOS download links',async()=>{
+test('homepage shows the requested study copy and official ChatGPT app links',async()=>{
  const ui=await setup();try{
   assert.equal(ui.doc.querySelector('.home-intro h1').textContent,'AI시대 뒤처지긴 싫고 시간은 없고,그래서 하루 용어 딱 10개씩만.');
-  assert.match(ui.doc.querySelector('.intro-copy').textContent,/내 AI 비서 "피클"을 연결해 두면/);
-  assert.match(ui.doc.querySelector('.intro-copy').textContent,/매일 저녁 8시, 용어 퀴즈 전화/);
-  assert.match(ui.doc.querySelector('.intro-copy').textContent,/물론 ChatGPT에게 단어 질문해달라고 해도 돼요\. 단, ChatGPT는 정해진 시간에 내게 전화를 해주지는 못해요\./);
+  assert.equal(ui.doc.querySelector('.intro-copy').textContent,'하루 단어 10개, 10분이면 충분해요.저녁 먹고 릴스 켜기 전에, 딱 한 번만 해보세요.');
+  assert.equal(ui.doc.querySelector('.store-links').getAttribute('aria-label'),'ChatGPT 앱 다운로드');
   const links=[...ui.doc.querySelectorAll('.store-links a')];
   assert.equal(links.length,2);
-  assert.equal(links[0].href,'https://play.google.com/store/apps/details?id=com.pickle.client');
-  assert.equal(links[1].href,'https://apps.apple.com/kr/app/id6795790129');
+  assert.equal(links[0].href,'https://play.google.com/store/apps/details?id=com.openai.chatgpt');
+  assert.equal(links[1].href,'https://apps.apple.com/app/openai-chatgpt/id6448311069');
   assert.equal(links[0].querySelector('img').getAttribute('src'),'./google-play.svg');
   assert.equal(links[1].querySelector('img').getAttribute('src'),'./app-store.svg');
-  assert.equal(ui.doc.querySelector('.pickle-prompt-trigger').textContent,'피클에게 이렇게 요청해보세요');
+  assert.equal(ui.doc.querySelector('.pickle-prompt-trigger').textContent,'ChatGPT에게 이렇게 요청해보세요');
   ui.click('show-pickle-prompt');
   const prompt=ui.doc.querySelector('.pickle-prompt-dialog');
   assert.ok(prompt.open);
@@ -257,7 +268,7 @@ test('admin Google login leads to list and shared editor validates categories',a
  assert.match(ui.doc.querySelector('#category-error').textContent,/하나 이상/);assert.equal(ui.saved(),null);
  form.querySelector('[name=categories]').checked=true;
  form.dispatchEvent(new ui.win.Event('submit',{bubbles:true,cancelable:true}));await wait(35);
- assert.equal(ui.saved().term,'새 용어');assert.equal(ui.saved().categories.length,1);assert.equal(ui.saved().importance,3);
+ assert.equal(ui.saved().term,'새 용어');assert.equal(ui.saved().imageUrl,'');assert.equal(ui.saved().categories.length,1);assert.equal(ui.saved().importance,3);
  }finally{ui.close();}
 });
 test('clicking either card face repeatedly flips without rating or advancing',async()=>{
