@@ -248,6 +248,7 @@ test('ten evaluations finish one batch and next starts at card eleven',async()=>
  assert.equal(ui.doc.querySelector('.completion-image').getAttribute('src'),'./boongeoppang-complete.png');
  assert.equal(ui.doc.querySelector('.completion-image').getAttribute('alt'),'완성된 붕어빵');
  assert.equal(ui.doc.querySelector('.complete-panel .eyebrow'),null);
+ assert.equal(ui.doc.querySelector('.result-stats span').textContent,'학습한 카드');
  assert.match(ui.doc.querySelector('.result-stats').textContent,/10/);
  const completionButtons=[...ui.doc.querySelectorAll('.complete-actions>.btn:not(.text-button)')];
  assert.deepEqual(completionButtons.map(button=>button.dataset.action),['review-session','next']);
