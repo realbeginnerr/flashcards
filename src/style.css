@@ -38,7 +38,7 @@
 /* Keep the exit action in the design-system destructive color on both faces. */
 .study-shell .card-footer [data-action="exit"]{color:var(--destructive)}
 
-.card-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px}.card-footer .study-caption{flex:1;min-width:0;text-align:left;padding:0;line-height:1.6}.card-footer .text-button{flex:none;padding:0;white-space:nowrap;text-decoration:none}.flashcard+.rating-dock{margin-top:12px}
+.card-footer{display:flex;align-items:center;justify-content:flex-start;margin-top:12px}.card-footer .text-button{flex:none;padding:0;white-space:nowrap;text-decoration:none}.flashcard+.rating-dock{margin-top:12px}
 .rating-dock{border-top:0}
 
 /* Keep the front term group centered in the whole card; category tags overlay the top edge. */
