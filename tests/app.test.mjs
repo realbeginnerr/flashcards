@@ -243,7 +243,12 @@ test('last batch is nine and restart preserves ratings',async()=>{
  const ui=await setup({state});try{
  ui.click('start');assert.match(ui.doc.querySelector('.numeric').textContent,/1.*9/);
  for(let i=0;i<9;i++){ui.click('flip');ui.click('known');await wait(260);}
- assert.match(ui.doc.querySelector('h1').textContent,/한 바퀴/);ui.click('restart');
+ assert.match(ui.doc.querySelector('h1').textContent,/한 바퀴/);
+ assert.match(ui.doc.querySelector('.complete-actions').textContent,/이번에 모른다고 표시한 용어가 없어요/);
+ assert.equal(ui.doc.querySelector('[data-action="review-session"]'),null);
+ assert.ok(ui.doc.querySelector('[data-action="restart"]'));
+ assert.match(styles,/\.complete-actions:not\(:has\(\[data-action="review-session"\]\)\)>\[data-action="restart"\]\{grid-column:1\/-1;justify-self:center\}/);
+ ui.click('restart');
  assert.equal(ui.doc.querySelector('h1').textContent,terms[0].term);
  assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
  }finally{ui.close();}
