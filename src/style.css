@@ -41,12 +41,9 @@
 .card-footer{display:flex;align-items:center;justify-content:flex-start;margin-top:12px}.card-footer .text-button{flex:none;padding:0;white-space:nowrap;text-decoration:none}.flashcard+.rating-dock{margin-top:12px}
 .rating-dock{border-top:0}
 
-/* Keep the front term group centered in the whole card; category tags overlay the top edge. */
-.flashcard.front{position:relative;display:grid;place-items:center}
-.front>.tags{position:absolute;top:36px;left:36px;right:36px}
-.front .term-heading{padding:0;text-align:center}
-@media(max-width:760px){.front>.tags{top:24px;left:24px;right:24px}}
-@media(max-width:360px){.front>.tags{top:20px;left:20px;right:20px}}
+/* Keep category tags and mention-frequency stars identical on both card faces. */
+.flashcard.front{display:grid;grid-template-rows:auto 1fr;align-items:stretch}
+.front .term-heading{align-self:center;padding:0;text-align:center}
 
 /* Typography policy: Carbon type roles first; Pretendard is the Korean fallback from the recipe design system. */
 body{font-family:var(--font);font-size:var(--type-body-expressive-size);line-height:var(--type-body-expressive-line);font-weight:400;letter-spacing:0}

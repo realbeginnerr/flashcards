@@ -5,6 +5,7 @@ import {Window} from 'happy-dom';
 import * as core from '../src/core.js';
 const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
 const source=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
+const styles=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
 const terms=core.normalizeCatalog(JSON.parse(await readFile(new URL('../public/terms.json',import.meta.url),'utf8')));
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function setup({cards=terms,state,hash='',motion=false,authenticated=true,cloudState,prioritized=false}={}){
@@ -57,6 +58,18 @@ test('card back renders meaning and two examples as separate paragraphs',async()
   assert.equal(paragraphs.length,3);
   assert.deepEqual(paragraphs.map(node=>node.textContent),[structured.definition,structured.explanation,structured.example]);
   assert.equal(ui.doc.querySelector('.example'),null);
+ }finally{ui.close();}
+});
+test('category tags and mention-frequency stars use the same top row on both faces',async()=>{
+ const ui=await setup();try{
+  ui.click('start');
+  const frontMeta=ui.doc.querySelector('.term-meta').outerHTML;
+  assert.equal(ui.doc.querySelector('.flashcard').firstElementChild.className,'term-meta');
+  ui.click('flip');
+  assert.equal(ui.doc.querySelector('.flashcard').firstElementChild.className,'term-meta');
+  assert.equal(ui.doc.querySelector('.term-meta').outerHTML,frontMeta);
+  assert.match(styles,/\.flashcard\.front\{display:grid;grid-template-rows:auto 1fr;align-items:stretch\}/);
+  assert.doesNotMatch(styles,/\.front>\.tags/);
  }finally{ui.close();}
 });
 test('homepage shows Pickle copy and official Android and iOS download links',async()=>{
