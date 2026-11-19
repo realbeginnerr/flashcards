@@ -88,10 +88,13 @@ test('elapsed-time display keeps running after the card is manually flipped',asy
  const ui=await setup({cards:[terms[0]],recallLimit:400});try{
   ui.click('start');await wait(120);
   const before=Number.parseInt(ui.doc.querySelector('.timer-text').textContent,10);
+  const beforeWidth=Number.parseFloat(ui.doc.querySelector('.recall-timer>span').style.width);
   ui.click('flip');assert.ok(ui.doc.querySelector('.flashcard.back'));
   await wait(140);
   const after=Number.parseInt(ui.doc.querySelector('.timer-text').textContent,10);
+  const afterWidth=Number.parseFloat(ui.doc.querySelector('.recall-timer>span').style.width);
   assert.ok(after>before,`${before} -> ${after}`);
+  assert.ok(afterWidth<beforeWidth,`${beforeWidth}% -> ${afterWidth}%`);
   assert.ok(ui.doc.querySelector('.flashcard.back'));
  }finally{ui.close();}
 });
