@@ -243,7 +243,7 @@ test('last batch is nine and restart preserves ratings',async()=>{
  const ui=await setup({state});try{
  ui.click('start');assert.match(ui.doc.querySelector('.numeric').textContent,/1.*9/);
  for(let i=0;i<9;i++){ui.click('flip');ui.click('known');await wait(260);}
- assert.match(ui.doc.querySelector('h1').textContent,/한 바퀴/);
+ assert.equal(ui.doc.querySelector('h1').textContent,'전체 용어를 모두 학습했어요.');
  assert.match(ui.doc.querySelector('.complete-actions').textContent,/이번에 모른다고 표시한 용어가 없어요/);
  assert.equal(ui.doc.querySelector('[data-action="review-session"]'),null);
  assert.ok(ui.doc.querySelector('[data-action="restart"]'));
@@ -251,6 +251,14 @@ test('last batch is nine and restart preserves ratings',async()=>{
  ui.click('restart');
  assert.equal(ui.doc.querySelector('h1').textContent,terms[0].term);
  assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
+ }finally{ui.close();}
+});
+test('completed category names the learned field in the heading',async()=>{
+ const card=terms.find(term=>term.categories.includes('개발'));
+ const ui=await setup({cards:[card]});try{
+  const field=ui.doc.querySelector('input[name="scope"][value="개발"]');field.checked=true;field.dispatchEvent(new ui.win.Event('change',{bubbles:true}));
+  ui.click('start');ui.click('known');await wait(260);
+  assert.equal(ui.doc.querySelector('h1').textContent,'개발 관련 용어를 모두 학습했어요.');
  }finally{ui.close();}
 });
 test('review uses only unknown IDs and known removes it on next visit',async()=>{
