@@ -54,6 +54,24 @@ test('homepage category counts show known terms over all eligible terms',async()
   }
  }finally{ui.close();}
 });
+test('study back button restores the previous card and its saved rating',async()=>{
+ let previous=core.rate(core.emptyState(),terms[0].id,'unknown');
+ const ui=await setup({cloudState:previous});try{
+  ui.click('start');
+  assert.equal(ui.doc.querySelector('[data-action="undo-rating"]').disabled,true);
+  ui.click('known');await wait(5);
+  assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
+  assert.equal(ui.cloudState().ratings[terms[0].id],'known');
+  assert.equal(ui.doc.querySelector('[data-action="undo-rating"]').disabled,false);
+  ui.click('undo-rating');await wait(5);
+  assert.equal(ui.doc.querySelector('h1').textContent,terms[0].term);
+  assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
+  assert.ok(ui.doc.querySelector('.flashcard.front'));
+  assert.equal(ui.doc.querySelector('[data-action="undo-rating"]').disabled,true);
+  ui.click('unknown');await wait(5);
+  assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
+ }finally{ui.close();}
+});
 test('study start shows highest mention-frequency cards first',async()=>{
  const ui=await setup({prioritized:true});try{
   ui.click('start');
@@ -67,8 +85,10 @@ test('study position stays left while the elapsed-time bar stays right and revea
   const toolbar=ui.doc.querySelector('.study-toolbar');
   assert.equal(toolbar.children[0].className,'study-position');
   assert.equal(toolbar.children[1].className,'recall-clock');
-  assert.equal(toolbar.querySelector('.study-position').children[0].className,'session-name');
-  assert.match(toolbar.querySelector('.study-position').children[1].className,/numeric/);
+  assert.equal(toolbar.querySelector('.study-position').children[0].className,'study-back');
+  assert.equal(toolbar.querySelector('.study-position').children[1].className,'session-name');
+  assert.match(toolbar.querySelector('.study-position').children[2].className,/numeric/);
+  assert.equal(toolbar.querySelector('.study-back').disabled,true);
   assert.match(toolbar.querySelector('.recall-clock').children[0].className,/recall-timer/);
   assert.match(toolbar.querySelector('.recall-clock').children[1].className,/timer-text/);
   const timer=ui.doc.querySelector('.recall-timer');
