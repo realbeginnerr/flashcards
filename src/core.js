@@ -36,7 +36,7 @@ export function normalizeTerm(term){
  const categories=unique((Array.isArray(term.categories)?term.categories:[]).filter(c=>CATEGORIES.includes(c)));
  const importance=Number.isInteger(term.importance)&&term.importance>=1&&term.importance<=5?term.importance:1;
  const rawImageUrl=text(term.imageUrl,2000),imageUrl=/^https?:\/\//i.test(rawImageUrl)?rawImageUrl:'';
- const result={id:text(term.id,160),term:text(term.term,200),englishTerm:text(term.englishTerm,500),imageUrl,definition:text(term.definition,20000),explanation:text(term.explanation,20000),example:text(term.example,20000),categories,importance,sources:[]};
+ const result={id:text(term.id,160),term:text(term.term,200),englishTerm:text(term.englishTerm,500),imageUrl,definition:text(term.definition,20000),explanation:text(term.explanation,20000),example:text(term.example,20000),synonyms:text(term.synonyms,5000),antonyms:text(term.antonyms,5000),categories,importance,sources:[]};
  if(!result.id||!result.term||!result.definition||!categories.length)throw new Error('용어명, 뜻, 분야를 확인해주세요.');
  result.sources=(Array.isArray(term.sources)?term.sources:[]).filter(s=>s&&typeof s.url==='string'&&/^https?:\/\//i.test(s.url)).map(s=>({title:text(s.title,300)||'참고 자료',url:s.url})).slice(0,20);
  return result;

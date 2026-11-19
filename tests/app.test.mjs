@@ -121,6 +121,17 @@ test('card back renders example labels as same-size bold subheadings above their
   assert.match(styles,/\.definition-example h2\{[^}]*font-size:inherit;[^}]*font-weight:600/);
  }finally{ui.close();}
 });
+test('card back shows only populated synonym and antonym sections after examples',async()=>{
+ const base=terms.find(term=>term.explanation&&term.example),related={...base,synonyms:'유사 개념 A, 유사 개념 B',antonyms:'반대 개념'};
+ const ui=await setup({cards:[related]});try{
+  ui.click('start');ui.click('flip');const sections=[...ui.doc.querySelectorAll('.term-relation')];
+  assert.deepEqual(sections.map(section=>section.querySelector('h2').textContent),['유의어','반의어']);
+  assert.deepEqual(sections.map(section=>section.querySelector('p').textContent),[related.synonyms,related.antonyms]);
+  assert.equal(sections[0].previousElementSibling.className,'definition-example');
+  assert.match(styles,/\.term-relation h2\{[^}]*font-size:inherit;[^}]*font-weight:600/);
+ }finally{ui.close();}
+ const empty=await setup({cards:[base]});try{empty.click('start');empty.click('flip');assert.equal(empty.doc.querySelector('.term-relation'),null);}finally{empty.close();}
+});
 test('card back places workbook reference media between English label and definition',async()=>{
  for(const [term,selector] of [[terms.find(item=>item.imageUrl&&!/\.mp4(?:[?#]|$)/i.test(item.imageUrl)),'img.term-reference-media'],[terms.find(item=>/\.mp4(?:[?#]|$)/i.test(item.imageUrl)),'video.term-reference-media']]){
   const ui=await setup({cards:[term]});try{
@@ -292,7 +303,7 @@ test('admin Google login leads to list and shared editor validates categories',a
  assert.match(ui.doc.querySelector('#category-error').textContent,/하나 이상/);assert.equal(ui.saved(),null);
  form.querySelector('[name=categories]').checked=true;
  form.dispatchEvent(new ui.win.Event('submit',{bubbles:true,cancelable:true}));await wait(35);
- assert.equal(ui.saved().term,'새 용어');assert.equal(ui.saved().imageUrl,'');assert.equal(ui.saved().categories.length,1);assert.equal(ui.saved().importance,3);
+ assert.equal(ui.saved().term,'새 용어');assert.equal(ui.saved().imageUrl,'');assert.equal(ui.saved().synonyms,'');assert.equal(ui.saved().antonyms,'');assert.equal(ui.saved().categories.length,1);assert.equal(ui.saved().importance,3);
  }finally{ui.close();}
 });
 test('clicking either card face repeatedly flips without rating or advancing',async()=>{

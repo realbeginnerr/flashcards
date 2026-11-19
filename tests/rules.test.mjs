@@ -5,7 +5,7 @@ import {doc,setDoc,getDoc,deleteDoc,serverTimestamp} from 'firebase/firestore';
 let env;
 before(async()=>{env=await initializeTestEnvironment({projectId:'demo-boongeok',firestore:{rules:await readFile(new URL('../firestore.rules',import.meta.url),'utf8')}});});
 after(async()=>{await env?.cleanup();});
-const value=(id,revision=1)=>({id,term:'권한 테스트',englishTerm:'Test',imageUrl:'',definition:'테스트용 뜻',explanation:'',example:'',categories:['개발'],importance:3,sources:[],position:0,revision,updatedAt:serverTimestamp()});
+const value=(id,revision=1)=>({id,term:'권한 테스트',englishTerm:'Test',imageUrl:'',definition:'테스트용 뜻',explanation:'',example:'',synonyms:'',antonyms:'',categories:['개발'],importance:3,sources:[],position:0,revision,updatedAt:serverTimestamp()});
 test('anonymous visitor can read but cannot create or delete',async()=>{
  const db=env.unauthenticatedContext().firestore();
  await assertSucceeds(getDoc(doc(db,'terms','anonymous-probe')));

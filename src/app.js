@@ -9,6 +9,7 @@ const HOME_CATEGORY_LABELS={'전체':'전체','AI 툴':'AI','개발':'개발','U
 const button=(text,action,style='primary',extra='')=>`<button class="btn ${style}" type="button" data-action="${action}" ${extra}>${text}</button>`;
 const tags=t=>`<div class="term-meta"><div class="tags">${t.categories.map(c=>`<span>${e(c)}</span>`).join('')}</div><span class="mention-frequency" aria-label="회의와 프로젝트 문서 언급 빈도 ${t.importance}점"><span aria-hidden="true">${'★'.repeat(t.importance)}${'☆'.repeat(5-t.importance)}</span></span></div>`;
 const exampleBlock=(value,label)=>{if(!value)return '';const prefix=`(${label})`,text=value.startsWith(prefix)?value.slice(prefix.length).trim():value;return `<section class="definition-example"><h2>${label}</h2><p class="preserve">${e(text)}</p></section>`;};
+const relationBlock=(value,label)=>value?`<section class="term-relation"><h2>${label}</h2><p class="preserve">${e(value)}</p></section>`:'';
 const referenceImageOverrides={
  'https://cursor.com/help/ai-features/agent?utm_source=chatgpt.com':'https://cursor.com/docs-static/icon-512x512.png',
  'https://www.designcouncil.org.uk/resources/the-double-diamond/':'https://www.designcouncil.org.uk/fileadmin/uploads/dc/Photos/banners/Double_Diamond.png'
@@ -99,7 +100,10 @@ function study(){
  const elapsed=Math.min(RECALL_LIMIT_MS,Date.now()-s.timerStartedAt),elapsedSeconds=Math.min(10,Math.floor(elapsed/RECALL_LIMIT_MS*10));
  const english=bilingual(term);const name=s.mode==='normal'?s.scope+' 학습':'모르는 용어 복습';
  render(`<section class="study-shell ${s.back?'is-back':''}"><div class="study-toolbar"><div class="study-position"><span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="recall-clock"><div class="progress recall-timer" role="progressbar" aria-label="뜻을 떠올린 경과 시간" aria-valuenow="${elapsedSeconds}" aria-valuemin="0" aria-valuemax="10" aria-valuetext="10초 중 ${elapsedSeconds}초 경과"><span style="width:${(1-elapsed/RECALL_LIMIT_MS)*100}%"></span></div><span class="timer-text numeric">${elapsedSeconds} / 10초</span></div></div><article class="flashcard ${s.back?'back':'front'}" tabindex="0" aria-label="학습 카드. 클릭하거나 Enter 또는 Space 키로 앞뒤를 전환할 수 있어요.">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`${referenceMedia(term)}<div class="definition"><p class="preserve">${e(term.definition)}</p>${exampleBlock(term.explanation,'업무 관련 예시')}${exampleBlock(term.example,'상황 예시')}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div>`:``}</article><div class="rating-dock"><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div><div class="card-footer">${button('학습 종료','exit','text-button')}</div></section>`);
- if(!s.back)main.querySelector('.flashcard')?.insertAdjacentHTML('beforeend',tapHint);
+ if(s.back){
+  const relations=relationBlock(term.synonyms,'유의어')+relationBlock(term.antonyms,'반의어'),references=main.querySelector('.references'),definition=main.querySelector('.definition');
+  if(relations)(references||definition).insertAdjacentHTML(references?'beforebegin':'beforeend',relations);
+ }else main.querySelector('.flashcard')?.insertAdjacentHTML('beforeend',tapHint);
  startRecallTimer(s,s.index);
 }
 let flipping=false;
@@ -241,8 +245,10 @@ function filterList(){
  list.innerHTML=found.length?found.map(t=>`<div class="admin-term"><div><strong>${e(t.term)}</strong>${bilingual(t)?`<span class="english">${e(t.englishTerm)}</span>`:''}${tags(t)}</div>${button('수정','edit','secondary',`data-id="${e(t.id)}"`)}</div>`).join(''):'<p class="empty-copy">검색 결과가 없어요. 다른 용어로 찾아보세요.</p>';
 }
 function editor(term){
- editing=term||null;dirty=false;const t=term||{term:'',englishTerm:'',imageUrl:'',definition:'',example:'',explanation:'',categories:[],importance:3,sources:[]};
+ editing=term||null;dirty=false;const t=term||{term:'',englishTerm:'',imageUrl:'',definition:'',example:'',explanation:'',synonyms:'',antonyms:'',categories:[],importance:3,sources:[]};
  render(`<section class="admin-shell editor"><p class="eyebrow">용어 관리</p><h1 tabindex="-1">${term?'용어 수정':'새 용어 추가'}</h1><form id="term-form"><label>용어명 <span class="required">필수</span><input name="term" value="${e(t.term)}" maxlength="200" required></label><label>영문·약어 <span class="optional">선택</span><input name="englishTerm" value="${e(t.englishTerm)}" maxlength="500"></label><label>참고 이미지 URL <span class="optional">선택</span><input name="imageUrl" type="url" value="${e(t.imageUrl)}" maxlength="2000" placeholder="https://"></label><fieldset><legend>분야 <span class="required">하나 이상 선택</span></legend><div class="check-grid">${CATEGORIES.map(c=>`<label><input type="checkbox" name="categories" value="${e(c)}" ${t.categories.includes(c)?'checked':''}>${e(c)}</label>`).join('')}</div><p class="field-error" id="category-error" aria-live="polite"></p></fieldset><label>언급량 <span class="required">회의·프로젝트 문서 기준 1~5점</span><input name="importance" type="number" min="1" max="5" step="1" value="${t.importance}" required></label>${[['definition','뜻','필수'],['explanation','업무 관련 예시','선택'],['example','상황 예시','선택']].map(([name,label,req])=>`<label>${label} <span class="${req==='필수'?'required':'optional'}">${req}</span><textarea name="${name}" maxlength="20000" rows="${name==='definition'?6:4}" ${req==='필수'?'required':''}>${e(t[name])}</textarea></label>`).join('')}<label>참고 출처 <span class="optional">선택 · 한 줄에 URL 하나</span><textarea name="sources" rows="3">${e(t.sources.map(s=>s.url).join('\n'))}</textarea></label><div id="form-error" role="alert"></div><div class="form-actions"><button type="submit" class="btn primary">저장</button>${button('취소','cancel','secondary')}</div>${term?`<div class="delete-area">${button('이 용어 삭제','delete','danger')}</div>`:''}</form></section>`);
+ const sourcesField=main.querySelector('textarea[name="sources"]').closest('label');
+ sourcesField.insertAdjacentHTML('beforebegin',`<label>유의어 <span class="optional">선택</span><textarea name="synonyms" maxlength="5000" rows="3">${e(t.synonyms)}</textarea></label><label>반의어 <span class="optional">선택</span><textarea name="antonyms" maxlength="5000" rows="3">${e(t.antonyms)}</textarea></label>`);
 }
 function canLeave(){return !dirty||confirm('저장하지 않은 내용이 있어요. 변경 내용을 버리고 나갈까요?');}
 async function saveForm(form){
@@ -251,7 +257,7 @@ async function saveForm(form){
  const sources=String(values.get('sources')).split('\n').map(x=>x.trim()).filter(Boolean);
  if(sources.some(url=>!/^https?:\/\//i.test(url))){form.querySelector('#form-error').textContent='참고 출처는 https:// 또는 http://로 시작하는 URL을 입력해주세요.';return;}
  let sourceObjects;try{sourceObjects=sources.map(url=>({title:new URL(url).hostname,url}));}catch{form.querySelector('#form-error').textContent='참고 출처의 URL 형식을 확인해주세요.';return;}
- const value={id:editing?.id||'term-'+crypto.randomUUID(),...Object.fromEntries(['term','englishTerm','imageUrl','definition','explanation','example'].map(key=>[key,values.get(key)])),categories,importance:Number(values.get('importance')),sources:sourceObjects};
+ const value={id:editing?.id||'term-'+crypto.randomUUID(),...Object.fromEntries(['term','englishTerm','imageUrl','definition','explanation','example','synonyms','antonyms'].map(key=>[key,values.get(key)])),categories,importance:Number(values.get('importance')),sources:sourceObjects};
  busy=true;const submit=form.querySelector('[type=submit]');submit.disabled=true;submit.textContent='저장 중…';form.querySelector('#form-error').textContent='';
  try{await writeTerm(value,editing);dirty=false;terms=await loadCatalog();adminList();message('용어를 저장했어요.');}catch(err){form.querySelector('#form-error').textContent=err.message;}finally{busy=false;if(submit.isConnected){submit.disabled=false;submit.textContent='저장';}}
 }
