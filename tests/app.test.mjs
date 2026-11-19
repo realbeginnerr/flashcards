@@ -98,6 +98,14 @@ test('elapsed-time display keeps running after the card is manually flipped',asy
   assert.ok(ui.doc.querySelector('.flashcard.back'));
  }finally{ui.close();}
 });
+test('card front shows a subtle tap hint that disappears on the back',async()=>{
+ const ui=await setup();try{
+  ui.click('start');const hint=ui.doc.querySelector('.flashcard.front>.tap-hint');
+  assert.ok(hint?.querySelector('svg'));assert.equal(hint.getAttribute('aria-hidden'),'true');
+  ui.click('flip');assert.ok(ui.doc.querySelector('.flashcard.back'));assert.equal(ui.doc.querySelector('.tap-hint'),null);
+  assert.match(styles,/\.tap-hint\{[^}]*right:20px;bottom:20px;[^}]*opacity:\.28;pointer-events:none/);
+ }finally{ui.close();}
+});
 test('card back renders example labels as same-size bold subheadings above their copy',async()=>{
  const structured=terms.find(term=>term.explanation&&term.example);
  const ui=await setup({cards:[structured]});

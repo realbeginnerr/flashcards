@@ -21,6 +21,7 @@ const referenceMedia=term=>{
   : `<img class="term-reference-media" src="${e(url)}" alt="${e(alt)}" loading="lazy" decoding="async">`;
 };
 const arrow='<span aria-hidden="true">↗</span>';
+const tapHint='<span class="tap-hint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 12V6a2 2 0 0 1 4 0v5-2a2 2 0 0 1 4 0v3-1a2 2 0 0 1 4 0v4c0 4-2.5 7-6 7h-1c-2.1 0-3.7-.9-4.9-2.4l-4-5.1a1.8 1.8 0 0 1 2.8-2.2L9 14.5M6 5 4 3M5 8H2M9 2V0"/></svg></span>';
 const PICKLE_PROMPT=`다음 웹사이트에 로그인해 내 단어 학습 현황을 확인하고, 매주 월~금 저녁 9시에 전화로 단어 암기 테스트를 진행해 줘.
 
 https://realbeginnerr.github.io/flashcards/
@@ -98,6 +99,7 @@ function study(){
  const elapsed=Math.min(RECALL_LIMIT_MS,Date.now()-s.timerStartedAt),elapsedSeconds=Math.min(10,Math.floor(elapsed/RECALL_LIMIT_MS*10));
  const english=bilingual(term);const name=s.mode==='normal'?s.scope+' 학습':'모르는 용어 복습';
  render(`<section class="study-shell ${s.back?'is-back':''}"><div class="study-toolbar"><div class="study-position"><span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="recall-clock"><div class="progress recall-timer" role="progressbar" aria-label="뜻을 떠올린 경과 시간" aria-valuenow="${elapsedSeconds}" aria-valuemin="0" aria-valuemax="10" aria-valuetext="10초 중 ${elapsedSeconds}초 경과"><span style="width:${(1-elapsed/RECALL_LIMIT_MS)*100}%"></span></div><span class="timer-text numeric">${elapsedSeconds} / 10초</span></div></div><article class="flashcard ${s.back?'back':'front'}" tabindex="0" aria-label="학습 카드. 클릭하거나 Enter 또는 Space 키로 앞뒤를 전환할 수 있어요.">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`${referenceMedia(term)}<div class="definition"><p class="preserve">${e(term.definition)}</p>${exampleBlock(term.explanation,'업무 관련 예시')}${exampleBlock(term.example,'상황 예시')}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div>`:``}</article><div class="rating-dock"><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div><div class="card-footer">${button('학습 종료','exit','text-button')}</div></section>`);
+ if(!s.back)main.querySelector('.flashcard')?.insertAdjacentHTML('beforeend',tapHint);
  startRecallTimer(s,s.index);
 }
 let flipping=false;
