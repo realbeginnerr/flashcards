@@ -14,9 +14,18 @@ export function loadState(storage){try{return {state:parseState(storage.getItem(
 export function saveState(storage,state){try{storage.setItem(STORE_KEY,JSON.stringify(state));return null;}catch(error){return error;}}
 export function eligible(terms,scope='전체'){return terms.filter(c=>scope==='전체'||c.categories.includes(scope));}
 export function unknownCards(terms,state){return terms.filter(c=>state.ratings[c.id]==='unknown');}
-export function nextBatch(terms,state,scope='전체'){
+function shuffled(items,random){
+ const result=[...items];
+ for(let index=result.length-1;index>0;index--){
+  const swap=Math.floor(random()*(index+1));
+  [result[index],result[swap]]=[result[swap],result[index]];
+ }
+ return result;
+}
+export function nextBatch(terms,state,scope='전체',random=Math.random){
  const done=new Set(state.completed[scope]||[]);
- return eligible(terms,scope).filter(c=>!done.has(c.id)).slice(0,10);
+ const remaining=eligible(terms,scope).filter(c=>!done.has(c.id));
+ return [5,4,3,2,1].flatMap(score=>shuffled(remaining.filter(card=>card.importance===score),random)).slice(0,10);
 }
 export function rate(state,id,value){if(!['known','unknown'].includes(value))throw new Error('이해도 값이 올바르지 않습니다.');return {...state,ratings:{...state.ratings,[id]:value}};}
 export function completeBatch(state,scope,ids){return {...state,completed:{...state.completed,[scope]:unique([...(state.completed[scope]||[]),...ids])}};}

@@ -18,6 +18,19 @@ test('all terms proceed in 10-card batches, ending with 9 and no duplicates',()=
  while((batch=nextBatch(terms,state)).length){assert.ok(batch.length<=10);seen.push(...batch.map(t=>t.id));state=completeBatch(state,'전체',batch.map(t=>t.id));if(seen.length===239)assert.equal(batch.length,9);}
  assert.equal(seen.length,239);assert.equal(new Set(seen).size,239);assert.equal(nextBatch(terms,state).length,0);
 });
+test('new study cards prioritize mention frequency and randomize ties',()=>{
+ const cards=[
+  {id:'low',importance:1,categories:['개발']},
+  {id:'high-a',importance:5,categories:['개발']},
+  {id:'mid',importance:3,categories:['개발']},
+  {id:'high-b',importance:5,categories:['개발']},
+ ];
+ const first=nextBatch(cards,emptyState(),'전체',()=>0.999999);
+ const second=nextBatch(cards,emptyState(),'전체',()=>0);
+ assert.deepEqual(first.map(card=>card.importance),[5,5,3,1]);
+ assert.deepEqual(second.map(card=>card.importance),[5,5,3,1]);
+ assert.notDeepEqual(first.slice(0,2).map(card=>card.id),second.slice(0,2).map(card=>card.id));
+});
 test('multi-category cards share one rating and remain unique in global catalog',()=>{
  const card=terms.find(t=>t.categories.length>1);const state=rate(emptyState(),card.id,'unknown');
  assert.equal(unknownCards(terms,state).filter(t=>t.id===card.id).length,1);
@@ -36,7 +49,7 @@ test('ratings survive local storage roundtrip and restart',()=>{
  let s=rate(emptyState(),terms[0].id,'unknown');s=completeBatch(s,'전체',[terms[0].id]);
  const stored=new Map();const storage={getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v)};
  assert.equal(saveState(storage,s),null);const restored=loadState(storage).state;assert.deepEqual(restored,s);
- const restarted=resetScope(restored,'전체');assert.equal(restarted.ratings[terms[0].id],'unknown');assert.equal(nextBatch(terms,restarted)[0].id,terms[0].id);
+ const restarted=resetScope(restored,'전체');assert.equal(restarted.ratings[terms[0].id],'unknown');assert.equal(nextBatch(terms,restarted)[0].importance,5);
 });
 test('broken storage is reported and never overwritten by load',()=>{
  let writes=0;const storage={getItem:()=>'{invalid',setItem:()=>writes++};
@@ -54,7 +67,8 @@ test('existing state has no effect on edited definitions or new IDs',()=>{
  assert.equal(s.ratings[changed[0].id],'known');assert.equal(s.ratings[changed[1].id],undefined);
 });
 test('deleted and stale completed IDs do not skip remaining cards',()=>{
- const s=completeBatch(emptyState(),'전체',['deleted',terms[0].id]);assert.equal(nextBatch(terms,s)[0].id,terms[1].id);
+ const s=completeBatch(emptyState(),'전체',['deleted',terms[0].id]),batch=nextBatch(terms,s);
+ assert.equal(batch.length,10);assert.ok(!batch.some(card=>card.id===terms[0].id||card.id==='deleted'));
 });
 test('duplicate IDs, missing definitions and invalid categories reject whole catalog',()=>{
  assert.throws(()=>normalizeCatalog([terms[0],terms[0]]));

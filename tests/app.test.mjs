@@ -7,7 +7,7 @@ const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8'
 const source=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
 const terms=core.normalizeCatalog(JSON.parse(await readFile(new URL('../public/terms.json',import.meta.url),'utf8')));
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function setup({cards=terms,state,hash='',motion=false,authenticated=true,cloudState}={}){
+async function setup({cards=terms,state,hash='',motion=false,authenticated=true,cloudState,prioritized=false}={}){
  const win=new Window({url:'http://localhost:5174/'+hash,settings:{disableCSSFileLoading:true,disableJavaScriptFileLoading:true}});
  const animations=[];
  win.matchMedia=()=>({matches:!motion});
@@ -17,7 +17,10 @@ async function setup({cards=terms,state,hash='',motion=false,authenticated=true,
  win.scrollTo=()=>{};win.confirm=()=>true;win.alert=()=>{};let admin=false,saved=null,clipboardText='';
  Object.defineProperty(win.navigator,'clipboard',{configurable:true,value:{writeText:async text=>{clipboardText=text;}}});
  let user=authenticated?{uid:'approved-user',email:'approved@example.com',emailVerified:true}:null,passwordSetupEmail=null,savedCloudState=cloudState===undefined?(state&&typeof state!=='string'?state:null):cloudState,deletionRequested=false;
- win.__deps={...core,e:core.escapeHtml,configured:true,loadCatalog:async()=>cards,currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},currentUser:async()=>user,userLogin:async email=>{user={uid:'approved-user',email,emailVerified:true};},requestPasswordSetup:async email=>{passwordSetupEmail=email;},userLogout:async()=>{user=null;},loadStudyState:async()=>savedCloudState,saveStudyState:async value=>{savedCloudState=value;},requestAccountDeletion:async()=>{deletionRequested=true;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
+ const testNextBatch=prioritized
+  ? (items,currentState,currentScope)=>core.nextBatch(items,currentState,currentScope,()=>0.999999)
+  : (items,currentState,currentScope='전체')=>{const done=new Set(currentState.completed[currentScope]||[]);return core.eligible(items,currentScope).filter(card=>!done.has(card.id)).slice(0,10);};
+ win.__deps={...core,nextBatch:testNextBatch,e:core.escapeHtml,configured:true,loadCatalog:async()=>cards,currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},currentUser:async()=>user,userLogin:async email=>{user={uid:'approved-user',email,emailVerified:true};},requestPasswordSetup:async email=>{passwordSetupEmail=email;},userLogout:async()=>{user=null;},loadStudyState:async()=>savedCloudState,saveStudyState:async value=>{savedCloudState=value;},requestAccountDeletion:async()=>{deletionRequested=true;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
  const body=source.replace(/^import .*;\r?\n/gm,'');
  const bindings=Object.keys(win.__deps).join(',');
  win.eval(`{ const {${bindings}} = window.__deps; ${body} }`);
@@ -35,6 +38,13 @@ test('homepage shows actual category counts and 10-card session with bilingual t
  ui.click('flip');assert.equal(ui.doc.querySelector('.definition>p').textContent,terms[0].definition);
  ui.click('unknown');await wait(270);assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
  assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
+ }finally{ui.close();}
+});
+test('study start shows highest mention-frequency cards first',async()=>{
+ const ui=await setup({prioritized:true});try{
+  ui.click('start');
+  const shown=terms.find(term=>term.term===ui.doc.querySelector('h1').textContent);
+  assert.equal(shown.importance,5);
  }finally{ui.close();}
 });
 test('card back renders meaning and two examples as separate paragraphs',async()=>{
