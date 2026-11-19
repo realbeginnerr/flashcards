@@ -76,3 +76,8 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 .home-intro h1{line-height:1.5;font-weight:600}
 .intro-copy br{display:none}
 .term-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.term-meta .tags{flex:1}.mention-frequency{flex:none;color:var(--green);font-family:var(--font);font-size:14px;line-height:1.4;letter-spacing:1px;white-space:nowrap}
+
+/* Keep the batch count beside the scope and use the bar as a 10-second recall timer. */
+.study-toolbar{justify-content:flex-start;gap:8px}
+.session-name{flex:none}
+.recall-timer>span{transition:width .1s linear}

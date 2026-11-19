@@ -1,7 +1,8 @@
 import {CATEGORIES,emptyState,eligible,unknownCards,nextBatch,rate,completeBatch,resetScope,bilingual,escapeHtml as e} from './core.js';
 import {loadCatalog,configured,currentAdmin,login,logout,currentUser,userLogin,requestPasswordSetup,userLogout,loadStudyState,saveStudyState,requestAccountDeletion,writeTerm,deleteTerm,seedCatalog} from './cloud.js';
 const main=document.querySelector('#main'),notice=document.querySelector('#notice');
-let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve();
+let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve(),recallInterval=null;
+const RECALL_LIMIT_MS=Number(window.__RECALL_LIMIT_MS__)||10000;
 const selected=(v,target)=>v===target?' checked':'';
 const HOME_CATEGORIES=['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅'];
 const HOME_CATEGORY_LABELS={'전체':'전체','AI 툴':'AI','개발':'개발','UX/UI 디자인':'UXUI 디자인','피그마':'피그마','마케팅':'마케팅, 브랜딩'};
@@ -38,7 +39,20 @@ function persist(){
  cloudSaveQueue=cloudSaveQueue.catch(()=>{}).then(()=>saveStudyState(snapshot)).catch(error=>banner(error.message||'학습 기록을 저장소에 저장하지 못했어요. 다시 시도해주세요.'));
 }
 function setHeaderUser(user){const link=document.querySelector('.header-login');if(!link)return;link.textContent=user?'마이페이지':'로그인';link.href='#/login';}
-function render(content,{wide=false}={}){main.className=wide?'wide':'';main.innerHTML=content;document.querySelector('.site-footer').hidden=Boolean(session&&!session.done);focusTitle();}
+function clearRecallTimer(){if(recallInterval!==null){window.clearInterval(recallInterval);recallInterval=null;}}
+window.addEventListener('pagehide',clearRecallTimer);
+function startRecallTimer(active,index){
+ const timer=main.querySelector('.recall-timer'),fill=timer?.querySelector('span');if(!timer||!fill)return;
+ const deadline=Date.now()+RECALL_LIMIT_MS;
+ const tick=()=>{
+  if(session!==active||active.index!==index||active.back){clearRecallTimer();return;}
+  const remaining=Math.max(0,deadline-Date.now()),seconds=Math.ceil(remaining/1000);
+  fill.style.width=`${remaining/RECALL_LIMIT_MS*100}%`;timer.setAttribute('aria-valuenow',String(seconds));timer.setAttribute('aria-valuetext',`${seconds}초 남음`);
+  if(!remaining){clearRecallTimer();flipCard();}
+ };
+ tick();if(session===active&&!active.back)recallInterval=window.setInterval(tick,100);
+}
+function render(content,{wide=false}={}){clearRecallTimer();main.className=wide?'wide':'';main.innerHTML=content;document.querySelector('.site-footer').hidden=Boolean(session&&!session.done);focusTitle();}
 function home(){
  session=null;dirty=false;editing=null;
  const total=eligible(terms,scope),done=new Set(state.completed[scope]||[]),remaining=total.filter(t=>!done.has(t.id)).length;
@@ -63,7 +77,8 @@ function empty(title,description){session=null;render(`<section class="empty-sta
 function study(){
  const s=session;if(!s)return home();const term=s.queue[s.index];if(!term)return finish();
  const english=bilingual(term);const name=s.mode==='normal'?s.scope+' 학습':'모르는 용어 복습';
- render(`<section class="study-shell ${s.back?'is-back':''}"><div class="study-toolbar"><span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="progress" role="progressbar" aria-label="이번 회차에서 확인한 카드" aria-valuenow="${s.index}" aria-valuemin="0" aria-valuemax="${s.queue.length}"><span style="width:${s.index/s.queue.length*100}%"></span></div><article class="flashcard ${s.back?'back':'front'}" tabindex="0" aria-label="학습 카드. 클릭하거나 Enter 또는 Space 키로 앞뒤를 전환할 수 있어요.">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`<div class="definition"><p class="preserve">${e(term.definition)}</p>${term.explanation?`<p class="preserve">${e(term.explanation)}</p>`:''}${term.example?`<p class="preserve">${e(term.example)}</p>`:''}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div>`:``}</article><div class="rating-dock"><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div><div class="card-footer">${button('학습 종료','exit','text-button')}</div></section>`);
+ render(`<section class="study-shell ${s.back?'is-back':''}"><div class="study-toolbar"><span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="progress recall-timer" role="progressbar" aria-label="뜻을 떠올릴 남은 시간" aria-valuenow="${s.back?0:10}" aria-valuemin="0" aria-valuemax="10" aria-valuetext="${s.back?'0초 남음':'10초 남음'}"><span style="width:${s.back?0:100}%"></span></div><article class="flashcard ${s.back?'back':'front'}" tabindex="0" aria-label="학습 카드. 클릭하거나 Enter 또는 Space 키로 앞뒤를 전환할 수 있어요.">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`<div class="definition"><p class="preserve">${e(term.definition)}</p>${term.explanation?`<p class="preserve">${e(term.explanation)}</p>`:''}${term.example?`<p class="preserve">${e(term.example)}</p>`:''}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div>`:``}</article><div class="rating-dock"><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div><div class="card-footer">${button('학습 종료','exit','text-button')}</div></section>`);
+ if(!s.back)startRecallTimer(s,s.index);
 }
 let flipping=false;
 async function flipCard(){

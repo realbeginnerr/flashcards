@@ -8,10 +8,11 @@ const source=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
 const styles=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
 const terms=core.normalizeCatalog(JSON.parse(await readFile(new URL('../public/terms.json',import.meta.url),'utf8')));
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function setup({cards=terms,state,hash='',motion=false,authenticated=true,cloudState,prioritized=false}={}){
+async function setup({cards=terms,state,hash='',motion=false,authenticated=true,cloudState,prioritized=false,recallLimit}={}){
  const win=new Window({url:'http://localhost:5174/'+hash,settings:{disableCSSFileLoading:true,disableJavaScriptFileLoading:true}});
  const animations=[];
  win.matchMedia=()=>({matches:!motion});
+ if(recallLimit)win.__RECALL_LIMIT_MS__=recallLimit;
  if(motion)win.HTMLElement.prototype.animate=function(keyframes,options){let resolve;const finished=new Promise(r=>resolve=r);animations.push({keyframes,options,finish:resolve});return {finished};};
  win.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
  if(state!==undefined)win.localStorage.setItem(core.STORE_KEY,typeof state==='string'?state:JSON.stringify(state));
@@ -26,7 +27,7 @@ async function setup({cards=terms,state,hash='',motion=false,authenticated=true,
  const bindings=Object.keys(win.__deps).join(',');
  win.eval(`{ const {${bindings}} = window.__deps; ${body} }`);
  await wait(35);
- return {win,doc:win.document,animations,click(action){const el=win.document.querySelector(`[data-action="${action}"]`) || (action==='flip'?win.document.querySelector('.flashcard'):null);assert.ok(el,`button ${action}`);el.click();},saved:()=>saved,passwordSetupEmail:()=>passwordSetupEmail,cloudState:()=>savedCloudState,deletionRequested:()=>deletionRequested,clipboardText:()=>clipboardText,close:()=>win.close()};
+ return {win,doc:win.document,animations,click(action){const el=win.document.querySelector(`[data-action="${action}"]`) || (action==='flip'?win.document.querySelector('.flashcard'):null);assert.ok(el,`button ${action}`);el.click();},saved:()=>saved,passwordSetupEmail:()=>passwordSetupEmail,cloudState:()=>savedCloudState,deletionRequested:()=>deletionRequested,clipboardText:()=>clipboardText,close(){win.dispatchEvent(new win.Event('pagehide'));win.close();}};
 }
 test('homepage shows actual category counts and 10-card session with bilingual term',async()=>{
  const ui=await setup();try{
@@ -46,6 +47,22 @@ test('study start shows highest mention-frequency cards first',async()=>{
   ui.click('start');
   const shown=terms.find(term=>term.term===ui.doc.querySelector('h1').textContent);
   assert.equal(shown.importance,5);
+ }finally{ui.close();}
+});
+test('study count sits beside the scope and the timer reveals the answer after ten seconds',async()=>{
+ const ui=await setup({cards:[terms[0]],recallLimit:30});try{
+  ui.click('start');
+  const toolbar=ui.doc.querySelector('.study-toolbar');
+  assert.equal(toolbar.children[0].className,'session-name');
+  assert.equal(toolbar.children[1].className,'numeric');
+  const timer=ui.doc.querySelector('.recall-timer');
+  assert.equal(timer.getAttribute('aria-label'),'뜻을 떠올릴 남은 시간');
+  assert.equal(timer.getAttribute('aria-valuemax'),'10');
+  assert.ok(ui.doc.querySelector('.flashcard.front'));
+  await wait(150);
+  assert.ok(ui.doc.querySelector('.flashcard.back'));
+  assert.equal(ui.doc.querySelector('.recall-timer').getAttribute('aria-valuenow'),'0');
+  assert.match(styles,/\.session-name\{flex:none\}/);
  }finally{ui.close();}
 });
 test('card back renders meaning and two examples as separate paragraphs',async()=>{
