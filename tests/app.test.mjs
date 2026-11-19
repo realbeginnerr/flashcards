@@ -64,6 +64,7 @@ test('homepage shows Pickle copy and official Android and iOS download links',as
   assert.equal(ui.doc.querySelector('.home-intro h1').textContent,'AI시대 뒤처지긴 싫고 시간은 없고,그래서 하루 용어 딱 10개씩만.');
   assert.match(ui.doc.querySelector('.intro-copy').textContent,/내 AI 비서 "피클"을 연결해 두면/);
   assert.match(ui.doc.querySelector('.intro-copy').textContent,/매일 저녁 8시, 용어 퀴즈 전화/);
+  assert.match(ui.doc.querySelector('.intro-copy').textContent,/물론 ChatGPT에게 단어 질문해달라고 해도 돼요\. 단, ChatGPT는 정해진 시간에 내게 전화를 해주지는 못해요\./);
   const links=[...ui.doc.querySelectorAll('.store-links a')];
   assert.equal(links.length,2);
   assert.equal(links[0].href,'https://play.google.com/store/apps/details?id=com.pickle.client');
