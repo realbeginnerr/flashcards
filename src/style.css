@@ -88,3 +88,6 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 .recall-timer>span{transition:width .1s linear}
 @media(max-width:760px){.recall-clock{gap:6px}.recall-timer{width:64px}}
 @media(max-width:760px){.flashcard{touch-action:pan-y}.flashcard.is-swiping{cursor:grabbing;user-select:none}}
+.definition-example{margin-top:20px}
+.definition-example h2{margin:0 0 4px;color:var(--ink);font-size:inherit;line-height:inherit;font-weight:600;letter-spacing:inherit}
+.definition-example p{margin:0}

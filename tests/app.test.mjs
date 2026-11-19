@@ -81,17 +81,19 @@ test('elapsed-time display keeps running after the card is manually flipped',asy
   assert.ok(ui.doc.querySelector('.flashcard.back'));
  }finally{ui.close();}
 });
-test('card back renders meaning and two examples as separate paragraphs',async()=>{
+test('card back renders example labels as same-size bold subheadings above their copy',async()=>{
  const structured=terms.find(term=>term.explanation&&term.example);
  const ui=await setup({cards:[structured]});
  try{
   ui.click('start');
   ui.click('flip');
-  const paragraphs=[...ui.doc.querySelectorAll('.definition>p')];
-  assert.equal(paragraphs.length,3);
-  assert.deepEqual(paragraphs.map(node=>node.textContent),[structured.definition,structured.explanation,structured.example]);
+  assert.equal(ui.doc.querySelector('.definition>p').textContent,structured.definition);
+  const examples=[...ui.doc.querySelectorAll('.definition-example')];
+  assert.deepEqual(examples.map(node=>node.querySelector('h2').textContent),['업무 관련 예시','상황 예시']);
+  assert.deepEqual(examples.map(node=>node.querySelector('p').textContent),[structured.explanation.replace(/^\(업무 관련 예시\)\s*/,''),structured.example.replace(/^\(상황 예시\)\s*/,'')]);
   assert.equal(ui.doc.querySelector('.example'),null);
   assert.match(styles,/\.back \.term-heading\{border-bottom:0\}/);
+  assert.match(styles,/\.definition-example h2\{[^}]*font-size:inherit;[^}]*font-weight:600/);
  }finally{ui.close();}
 });
 test('category tags and mention-frequency stars use the same top row on both faces',async()=>{
