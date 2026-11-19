@@ -42,6 +42,18 @@ test('homepage shows actual category counts and 10-card session with bilingual t
  assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
  }finally{ui.close();}
 });
+test('homepage category counts show known terms over all eligible terms',async()=>{
+ let progress=core.rate(core.emptyState(),terms[0].id,'known');
+ progress=core.rate(progress,terms[1].id,'unknown');
+ const ui=await setup({cloudState:progress});try{
+  for(const category of ['전체',...core.CATEGORIES]){
+   const option=ui.doc.querySelector(`input[value="${category}"]`).closest('.category-option');
+   const categoryTerms=core.eligible(terms,category);
+   const known=categoryTerms.filter(term=>progress.ratings[term.id]==='known').length;
+   assert.equal(option.querySelector('.category-count').textContent,`${known}/${categoryTerms.length}개`);
+  }
+ }finally{ui.close();}
+});
 test('study start shows highest mention-frequency cards first',async()=>{
  const ui=await setup({prioritized:true});try{
   ui.click('start');
