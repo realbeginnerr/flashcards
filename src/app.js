@@ -114,7 +114,32 @@ main.addEventListener('keydown',ev=>{
   ev.preventDefault();flipCard();
  }
 });
-async function evaluate(value){
+let swipe=null,suppressFlip=false;
+const mobileSwipeEnabled=()=>window.matchMedia('(max-width: 760px)').matches;
+function resetSwipe(card){if(card){card.style.transform='';card.style.opacity='';card.classList.remove('is-swiping');}swipe=null;}
+main.addEventListener('pointerdown',ev=>{
+ const card=ev.target.closest('.flashcard');
+ if(!card||!mobileSwipeEnabled()||busy||flipping||ev.button!==0||ev.target.closest('a,button,input,textarea,select,summary,details,.preserve'))return;
+ swipe={card,pointerId:ev.pointerId,startX:ev.clientX,startY:ev.clientY,dx:0,dragging:false};card.setPointerCapture?.(ev.pointerId);
+});
+main.addEventListener('pointermove',ev=>{
+ if(!swipe||ev.pointerId!==swipe.pointerId)return;
+ const dx=ev.clientX-swipe.startX,dy=ev.clientY-swipe.startY;
+ if(!swipe.dragging&&Math.abs(dx)<8)return;
+ if(!swipe.dragging&&Math.abs(dx)<=Math.abs(dy)){resetSwipe(swipe.card);return;}
+ swipe.dragging=true;swipe.dx=dx;ev.preventDefault();swipe.card.classList.add('is-swiping');swipe.card.style.transform=`translateX(${dx}px) rotate(${dx/35}deg)`;swipe.card.style.opacity=String(Math.max(.55,1-Math.abs(dx)/600));
+});
+main.addEventListener('pointerup',ev=>{
+ if(!swipe||ev.pointerId!==swipe.pointerId)return;
+ const {card,dx,dragging}=swipe,threshold=Math.min(110,Math.max(72,card.getBoundingClientRect().width*.2));swipe=null;card.releasePointerCapture?.(ev.pointerId);
+ if(!dragging){resetSwipe(card);return;}
+ suppressFlip=true;window.setTimeout(()=>{suppressFlip=false;},300);
+ if(Math.abs(dx)>=threshold){card.classList.remove('is-swiping');evaluate(dx>0?'known':'unknown',dx);return;}
+ if(card.animate)card.animate([{transform:`translateX(${dx}px) rotate(${dx/35}deg)`,opacity:card.style.opacity||1},{transform:'translateX(0) rotate(0)',opacity:1}],{duration:180,easing:'ease-out'}).finished.finally(()=>resetSwipe(card));
+ else resetSwipe(card);
+});
+main.addEventListener('pointercancel',()=>resetSwipe(swipe?.card));
+async function evaluate(value,fromX=0){
  if(busy||flipping||!session||session.done)return;
  busy=true;
  const active=session,term=active.queue[active.index],card=main.querySelector('.flashcard');
@@ -130,9 +155,10 @@ async function evaluate(value){
  try{
   if(reduced||!card?.animate){advance();return;}
   card.setAttribute('aria-busy','true');
+  const direction=value==='known'?1:-1;
   await card.animate([
-   {transform:'translateY(0)',opacity:1},
-   {transform:'translateY(-110%)',opacity:0}
+   {transform:`translateX(${fromX}px)`,opacity:1},
+   {transform:`translateX(${direction*110}%)`,opacity:0}
   ],{duration:240,easing:'cubic-bezier(.4,0,.8,.4)',fill:'forwards'}).finished;
   if(!advance())return;
   const next=main.querySelector('.flashcard')||main.querySelector('.complete-panel');
@@ -231,6 +257,7 @@ main.addEventListener('click',async ev=>{
  const target=ev.target.closest('[data-action]');
  if(!target){
   const card=ev.target.closest('.flashcard');
+  if(suppressFlip){suppressFlip=false;return;}
   if(card&&!ev.target.closest('a,button,input,textarea,select,summary,details')&&!window.getSelection()?.toString())flipCard();
   return;
  }

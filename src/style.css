@@ -81,3 +81,4 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 .study-toolbar{justify-content:flex-start;gap:8px}
 .session-name{flex:none}
 .recall-timer>span{transition:width .1s linear}
+@media(max-width:760px){.flashcard{touch-action:pan-y}.flashcard.is-swiping{cursor:grabbing;user-select:none}}

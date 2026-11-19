@@ -8,10 +8,10 @@ const source=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
 const styles=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
 const terms=core.normalizeCatalog(JSON.parse(await readFile(new URL('../public/terms.json',import.meta.url),'utf8')));
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function setup({cards=terms,state,hash='',motion=false,authenticated=true,cloudState,prioritized=false,recallLimit}={}){
+async function setup({cards=terms,state,hash='',motion=false,mobile=false,authenticated=true,cloudState,prioritized=false,recallLimit}={}){
  const win=new Window({url:'http://localhost:5174/'+hash,settings:{disableCSSFileLoading:true,disableJavaScriptFileLoading:true}});
  const animations=[];
- win.matchMedia=()=>({matches:!motion});
+ win.matchMedia=query=>({matches:query.includes('max-width')?mobile:!motion});
  if(recallLimit)win.__RECALL_LIMIT_MS__=recallLimit;
  if(motion)win.HTMLElement.prototype.animate=function(keyframes,options){let resolve;const finished=new Promise(r=>resolve=r);animations.push({keyframes,options,finish:resolve});return {finished};};
  win.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
@@ -277,12 +277,12 @@ test('leaving during rotation does not restore an old card',async()=>{
  assert.equal(ui.doc.querySelector('.flashcard'),null);assert.ok(ui.doc.querySelector('[data-action=start]'));
  }finally{ui.close();}
 });
-test('known and unknown both slide current card upward and next card from below exactly once',async()=>{
+test('known slides right, unknown slides left, and next card rises from below exactly once',async()=>{
  for(const rating of ['known','unknown']){
   const ui=await setup({motion:true});try{
    ui.click('start');ui.click('flip');ui.animations[0].finish();await wait(5);ui.animations[1].finish();await wait(5);
    ui.click(rating);assert.equal(ui.animations.length,3);
-   assert.match(ui.animations[2].keyframes[1].transform,/-110%/);
+   assert.equal(ui.animations[2].keyframes[1].transform,`translateX(${rating==='known'?110:-110}%)`);
    assert.equal(ui.doc.querySelector('h1').textContent,terms[0].term);
    ui.click(rating);ui.doc.querySelector('.flashcard').click();assert.equal(ui.animations.length,3);await wait(5);
    assert.equal(ui.cloudState().ratings[terms[0].id],rating);
@@ -293,6 +293,20 @@ test('known and unknown both slide current card upward and next card from below 
    ui.animations[3].finish();await wait(5);
    assert.equal(ui.doc.querySelector('.flashcard').hasAttribute('aria-busy'),false);
    assert.match(ui.doc.querySelector('.numeric').textContent,/2.*10/);
+  }finally{ui.close();}
+ }
+});
+test('mobile horizontal swipes rate cards in their matching directions',async()=>{
+ for(const [dx,rating,target] of [[120,'known','translateX(110%)'],[-120,'unknown','translateX(-110%)']]){
+  const ui=await setup({motion:true,mobile:true,cards:terms.slice(0,2)});try{
+   ui.click('start');const card=ui.doc.querySelector('.flashcard');
+   const pointer=(type,x)=>{const event=new ui.win.Event(type,{bubbles:true,cancelable:true});Object.defineProperties(event,{pointerId:{value:1},clientX:{value:x},clientY:{value:100},button:{value:0}});card.dispatchEvent(event);};
+   pointer('pointerdown',100);pointer('pointermove',100+dx);pointer('pointerup',100+dx);
+   assert.equal(ui.animations.length,1);
+   assert.equal(ui.animations[0].keyframes[1].transform,target);
+   await wait(5);
+   assert.equal(ui.cloudState().ratings[terms[0].id],rating);
+   assert.match(styles,/@media\(max-width:760px\)\{\.flashcard\{touch-action:pan-y\}/);
   }finally{ui.close();}
  }
 });
