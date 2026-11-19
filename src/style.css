@@ -61,6 +61,7 @@ h1,h2{letter-spacing:0}
 .term-heading h1{font-size:var(--type-heading-05-size);line-height:var(--type-heading-05-line);font-weight:400;letter-spacing:0}
 .term-heading .english{font-size:var(--type-body-expressive-size);line-height:22px;font-weight:400;letter-spacing:0}
 .back .term-heading h1{font-size:var(--type-heading-04-size);line-height:var(--type-heading-04-line)}
+.back .term-heading{border-bottom:0}
 .definition{font-size:var(--type-body-expressive-size);line-height:var(--type-body-expressive-line);font-weight:400;letter-spacing:0}
 .definition h2,.example,.info-box,.loading,.empty-copy{font-size:var(--type-body-size);line-height:var(--type-body-line);font-weight:400;letter-spacing:var(--type-body-track)}
 .code-example{font-family:var(--font-mono);font-size:var(--type-label-size);line-height:var(--type-label-line);font-weight:400;letter-spacing:.32px}

@@ -91,6 +91,7 @@ test('card back renders meaning and two examples as separate paragraphs',async()
   assert.equal(paragraphs.length,3);
   assert.deepEqual(paragraphs.map(node=>node.textContent),[structured.definition,structured.explanation,structured.example]);
   assert.equal(ui.doc.querySelector('.example'),null);
+  assert.match(styles,/\.back \.term-heading\{border-bottom:0\}/);
  }finally{ui.close();}
 });
 test('category tags and mention-frequency stars use the same top row on both faces',async()=>{
