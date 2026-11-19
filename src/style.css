@@ -77,8 +77,13 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 .intro-copy br{display:none}
 .term-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.term-meta .tags{flex:1}.mention-frequency{flex:none;color:var(--green);font-family:var(--font);font-size:14px;line-height:1.4;letter-spacing:1px;white-space:nowrap}
 
-/* Keep the batch count beside the scope and use the bar as a 10-second recall timer. */
-.study-toolbar{justify-content:flex-start;gap:8px}
+/* Keep study position left and the 10-second elapsed-time indicator at the far right. */
+.study-toolbar{justify-content:space-between;gap:16px}
+.study-position{display:flex;align-items:center;gap:8px;min-width:0}
 .session-name{flex:none}
+.recall-clock{display:flex;align-items:center;gap:8px;margin-left:auto;flex:none}
+.timer-text{color:var(--muted);white-space:nowrap}
+.recall-timer{width:96px;height:3px;margin:0;flex:none}
 .recall-timer>span{transition:width .1s linear}
+@media(max-width:760px){.recall-clock{gap:6px}.recall-timer{width:64px}}
 @media(max-width:760px){.flashcard{touch-action:pan-y}.flashcard.is-swiping{cursor:grabbing;user-select:none}}

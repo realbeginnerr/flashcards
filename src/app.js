@@ -42,15 +42,14 @@ function setHeaderUser(user){const link=document.querySelector('.header-login');
 function clearRecallTimer(){if(recallInterval!==null){window.clearInterval(recallInterval);recallInterval=null;}}
 window.addEventListener('pagehide',clearRecallTimer);
 function startRecallTimer(active,index){
- const timer=main.querySelector('.recall-timer'),fill=timer?.querySelector('span');if(!timer||!fill)return;
- const deadline=Date.now()+RECALL_LIMIT_MS;
+ const timer=main.querySelector('.recall-timer'),fill=timer?.querySelector('span'),text=main.querySelector('.timer-text');if(!timer||!fill||!text)return;
  const tick=()=>{
-  if(session!==active||active.index!==index||active.back){clearRecallTimer();return;}
-  const remaining=Math.max(0,deadline-Date.now()),seconds=Math.ceil(remaining/1000);
-  fill.style.width=`${remaining/RECALL_LIMIT_MS*100}%`;timer.setAttribute('aria-valuenow',String(seconds));timer.setAttribute('aria-valuetext',`${seconds}초 남음`);
-  if(!remaining){clearRecallTimer();flipCard();}
+  if(session!==active||active.index!==index){clearRecallTimer();return;}
+  const elapsed=Math.min(RECALL_LIMIT_MS,Date.now()-active.timerStartedAt),seconds=Math.min(10,Math.floor(elapsed/RECALL_LIMIT_MS*10));
+  fill.style.width=`${elapsed/RECALL_LIMIT_MS*100}%`;text.textContent=`${seconds} / 10초`;timer.setAttribute('aria-valuenow',String(seconds));timer.setAttribute('aria-valuetext',`10초 중 ${seconds}초 경과`);
+  if(elapsed>=RECALL_LIMIT_MS){clearRecallTimer();if(!active.back)flipCard();}
  };
- tick();if(session===active&&!active.back)recallInterval=window.setInterval(tick,100);
+ tick();if(session===active&&Date.now()-active.timerStartedAt<RECALL_LIMIT_MS)recallInterval=window.setInterval(tick,100);
 }
 function render(content,{wide=false}={}){clearRecallTimer();main.className=wide?'wide':'';main.innerHTML=content;document.querySelector('.site-footer').hidden=Boolean(session&&!session.done);focusTitle();}
 function home(){
@@ -76,9 +75,11 @@ function begin(mode='normal',queue){
 function empty(title,description){session=null;render(`<section class="empty-state"><span class="eyebrow">가볍게, 다시 시작</span><h1 tabindex="-1">${e(title)}</h1><p>${e(description)}</p>${button('학습하러 가기','home')}</section>`);}
 function study(){
  const s=session;if(!s)return home();const term=s.queue[s.index];if(!term)return finish();
+ if(s.timerIndex!==s.index){s.timerIndex=s.index;s.timerStartedAt=Date.now();}
+ const elapsed=Math.min(RECALL_LIMIT_MS,Date.now()-s.timerStartedAt),elapsedSeconds=Math.min(10,Math.floor(elapsed/RECALL_LIMIT_MS*10));
  const english=bilingual(term);const name=s.mode==='normal'?s.scope+' 학습':'모르는 용어 복습';
- render(`<section class="study-shell ${s.back?'is-back':''}"><div class="study-toolbar"><span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="progress recall-timer" role="progressbar" aria-label="뜻을 떠올릴 남은 시간" aria-valuenow="${s.back?0:10}" aria-valuemin="0" aria-valuemax="10" aria-valuetext="${s.back?'0초 남음':'10초 남음'}"><span style="width:${s.back?0:100}%"></span></div><article class="flashcard ${s.back?'back':'front'}" tabindex="0" aria-label="학습 카드. 클릭하거나 Enter 또는 Space 키로 앞뒤를 전환할 수 있어요.">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`<div class="definition"><p class="preserve">${e(term.definition)}</p>${term.explanation?`<p class="preserve">${e(term.explanation)}</p>`:''}${term.example?`<p class="preserve">${e(term.example)}</p>`:''}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div>`:``}</article><div class="rating-dock"><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div><div class="card-footer">${button('학습 종료','exit','text-button')}</div></section>`);
- if(!s.back)startRecallTimer(s,s.index);
+ render(`<section class="study-shell ${s.back?'is-back':''}"><div class="study-toolbar"><div class="study-position"><span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="recall-clock"><span class="timer-text numeric">${elapsedSeconds} / 10초</span><div class="progress recall-timer" role="progressbar" aria-label="뜻을 떠올린 경과 시간" aria-valuenow="${elapsedSeconds}" aria-valuemin="0" aria-valuemax="10" aria-valuetext="10초 중 ${elapsedSeconds}초 경과"><span style="width:${elapsed/RECALL_LIMIT_MS*100}%"></span></div></div></div><article class="flashcard ${s.back?'back':'front'}" tabindex="0" aria-label="학습 카드. 클릭하거나 Enter 또는 Space 키로 앞뒤를 전환할 수 있어요.">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`<div class="definition"><p class="preserve">${e(term.definition)}</p>${term.explanation?`<p class="preserve">${e(term.explanation)}</p>`:''}${term.example?`<p class="preserve">${e(term.example)}</p>`:''}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div>`:``}</article><div class="rating-dock"><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div><div class="card-footer">${button('학습 종료','exit','text-button')}</div></section>`);
+ startRecallTimer(s,s.index);
 }
 let flipping=false;
 async function flipCard(){

@@ -49,20 +49,36 @@ test('study start shows highest mention-frequency cards first',async()=>{
   assert.equal(shown.importance,5);
  }finally{ui.close();}
 });
-test('study count sits beside the scope and the timer reveals the answer after ten seconds',async()=>{
+test('study position stays left while the elapsed-time bar stays right and reveals after ten seconds',async()=>{
  const ui=await setup({cards:[terms[0]],recallLimit:30});try{
   ui.click('start');
   const toolbar=ui.doc.querySelector('.study-toolbar');
-  assert.equal(toolbar.children[0].className,'session-name');
-  assert.equal(toolbar.children[1].className,'numeric');
+  assert.equal(toolbar.children[0].className,'study-position');
+  assert.equal(toolbar.children[1].className,'recall-clock');
+  assert.equal(toolbar.querySelector('.study-position').children[0].className,'session-name');
+  assert.match(toolbar.querySelector('.study-position').children[1].className,/numeric/);
   const timer=ui.doc.querySelector('.recall-timer');
-  assert.equal(timer.getAttribute('aria-label'),'뜻을 떠올릴 남은 시간');
+  assert.equal(timer.getAttribute('aria-label'),'뜻을 떠올린 경과 시간');
   assert.equal(timer.getAttribute('aria-valuemax'),'10');
+  assert.equal(ui.doc.querySelector('.timer-text').textContent,'0 / 10초');
   assert.ok(ui.doc.querySelector('.flashcard.front'));
   await wait(150);
   assert.ok(ui.doc.querySelector('.flashcard.back'));
-  assert.equal(ui.doc.querySelector('.recall-timer').getAttribute('aria-valuenow'),'0');
+  assert.equal(ui.doc.querySelector('.recall-timer').getAttribute('aria-valuenow'),'10');
+  assert.equal(ui.doc.querySelector('.timer-text').textContent,'10 / 10초');
   assert.match(styles,/\.session-name\{flex:none\}/);
+  assert.match(styles,/\.recall-clock\{[^}]*margin-left:auto/);
+ }finally{ui.close();}
+});
+test('elapsed-time display keeps running after the card is manually flipped',async()=>{
+ const ui=await setup({cards:[terms[0]],recallLimit:400});try{
+  ui.click('start');await wait(120);
+  const before=Number.parseInt(ui.doc.querySelector('.timer-text').textContent,10);
+  ui.click('flip');assert.ok(ui.doc.querySelector('.flashcard.back'));
+  await wait(140);
+  const after=Number.parseInt(ui.doc.querySelector('.timer-text').textContent,10);
+  assert.ok(after>before,`${before} -> ${after}`);
+  assert.ok(ui.doc.querySelector('.flashcard.back'));
  }finally{ui.close();}
 });
 test('card back renders meaning and two examples as separate paragraphs',async()=>{
