@@ -69,6 +69,8 @@ test('study position stays left while the elapsed-time bar stays right and revea
   assert.equal(toolbar.children[1].className,'recall-clock');
   assert.equal(toolbar.querySelector('.study-position').children[0].className,'session-name');
   assert.match(toolbar.querySelector('.study-position').children[1].className,/numeric/);
+  assert.match(toolbar.querySelector('.recall-clock').children[0].className,/recall-timer/);
+  assert.match(toolbar.querySelector('.recall-clock').children[1].className,/timer-text/);
   const timer=ui.doc.querySelector('.recall-timer');
   assert.equal(timer.getAttribute('aria-label'),'뜻을 떠올린 경과 시간');
   assert.equal(timer.getAttribute('aria-valuemax'),'10');
