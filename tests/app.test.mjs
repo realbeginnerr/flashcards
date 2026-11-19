@@ -79,6 +79,14 @@ test('study start shows highest mention-frequency cards first',async()=>{
   assert.equal(shown.importance,5);
  }finally{ui.close();}
 });
+test('study toolbar describes the selected category as terminology in progress',async()=>{
+ const ui=await setup();try{
+  const marketing=ui.doc.querySelector('input[name="scope"][value="마케팅"]');
+  marketing.checked=true;marketing.dispatchEvent(new ui.win.Event('change',{bubbles:true}));
+  ui.click('start');
+  assert.equal(ui.doc.querySelector('.session-name').textContent,'마케팅 용어 학습 중');
+ }finally{ui.close();}
+});
 test('study position stays left while the elapsed-time bar stays right and reveals after ten seconds',async()=>{
  const ui=await setup({cards:[terms[0]],recallLimit:30});try{
   ui.click('start');
