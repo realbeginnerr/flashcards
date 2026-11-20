@@ -223,16 +223,18 @@ test('homepage shows the requested study copy and official ChatGPT app links',as
   assert.doesNotMatch(ui.doc.querySelector('.start-panel').textContent,/한 번에 10장씩, 내 속도대로/);
  }finally{ui.close();}
 });
-test('homepage uses equal three-column cards and keeps UXUI whole and Figma choices inside one card',async()=>{
+test('homepage fills three-card and two-card Bento rows and keeps UXUI choices inside one card',async()=>{
  const ui=await setup();try{
   const sections=ui.doc.querySelector('.home-sections');
   assert.equal(sections.children[0].className,'study-field-section');
   assert.equal(sections.children[1].className,'home-intro');
   assert.match(ui.doc.querySelector('.category-list').className,/bento-grid/);
-  assert.match(styles,/\.bento-grid\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.bento-grid\{display:grid;grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.bento-grid \.category-group:nth-child\(-n\+3\)\{grid-column:span 2\}/);
+  assert.match(styles,/\.bento-grid \.category-group:nth-child\(n\+4\)\{grid-column:span 3\}/);
   assert.match(styles,/grid-auto-rows:156px/);
   assert.match(styles,/\.study-field-section\{width:100%;max-width:none/);
-  assert.match(styles,/@media\(max-width:760px\)\{\.home-sections\{gap:64px\}.*\.bento-grid\{grid-template-columns:1fr;grid-auto-rows:140px/);
+  assert.match(styles,/@media\(max-width:760px\)\{\.home-sections\{gap:64px\}.*\.bento-grid\{grid-template-columns:1fr;grid-auto-rows:140px.*\.bento-grid \.category-group\{grid-column:1\/-1\}/);
   assert.match(styles,/\.home-sections \.home-intro\{[^}]*text-align:center/);
   assert.match(styles,/\.home-sections \.home-intro\{[^}]*background:var\(--green\);color:#fff/);
   assert.match(styles,/\.home-sections \.home-intro h1\{font-size:var\(--type-heading-05-size\);line-height:var\(--type-heading-05-line\)\}/);
