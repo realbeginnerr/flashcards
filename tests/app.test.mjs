@@ -198,7 +198,7 @@ test('category tags and mention-frequency stars use the same top row on both fac
 test('homepage shows the requested study copy and official ChatGPT app links',async()=>{
  const ui=await setup();try{
   assert.equal(ui.doc.querySelector('.home-intro h1').textContent,'AI시대 뒤처지긴 싫고 시간은 없고,하루 용어 딱 10개씩만.');
-  assert.equal(ui.doc.querySelector('.intro-copy').textContent,'하루 단어 10개, 10분이면 충분해요.저녁 먹고 릴스 켜기 전에, 딱 한 번만 해보세요.');
+  assert.equal(ui.doc.querySelector('.intro-copy').textContent,'10분이면 충분해요.저녁 먹고 릴스 켜기 전에, 딱 한 번만 해보세요.');
   assert.equal(ui.doc.querySelector('.store-links').getAttribute('aria-label'),'ChatGPT 앱 다운로드');
   const links=[...ui.doc.querySelectorAll('.store-links a')];
   assert.equal(links.length,2);
