@@ -232,8 +232,8 @@ test('homepage fills three-card and two-card Bento rows and keeps UXUI choices i
   assert.equal(sections.children[1].className,'home-intro');
   assert.match(ui.doc.querySelector('.category-list').className,/bento-grid/);
   assert.match(styles,/\.bento-grid\{display:grid;grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
-  assert.match(styles,/\.bento-grid \.category-group:nth-child\(-n\+3\)\{grid-column:span 2\}/);
-  assert.match(styles,/\.bento-grid \.category-group:nth-child\(n\+4\)\{grid-column:span 3\}/);
+  assert.match(styles,/\.bento-grid \.category-group:nth-of-type\(-n\+3\)\{grid-column:span 2\}/);
+  assert.match(styles,/\.bento-grid \.category-group:nth-of-type\(n\+4\)\{grid-column:span 3\}/);
   assert.match(styles,/grid-auto-rows:156px/);
   assert.match(styles,/\.study-field-section\{width:100%;max-width:none/);
   assert.match(styles,/@media\(max-width:760px\)\{\.home-sections\{gap:64px\}.*\.bento-grid\{grid-template-columns:1fr;grid-auto-rows:140px.*\.bento-grid \.category-group\{grid-column:1\/-1\}/);
