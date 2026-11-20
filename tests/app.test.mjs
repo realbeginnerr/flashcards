@@ -244,6 +244,7 @@ test('homepage fills three-card and two-card Bento rows and keeps UXUI choices i
   assert.match(styles,/\.home-sections \.home-intro h1,[^}]*\.home-sections \.intro-copy\{color:#fff\}/);
   assert.match(styles,/\.home-sections \.store-links a\{border-color:#fff;color:#fff\}/);
   assert.match(styles,/\.home-sections \.store-links a\{text-align:left;justify-content:flex-start\}/);
+  assert.match(styles,/\.home-sections \.store-links a img\{filter:brightness\(0\) invert\(1\)\}/);
   assert.match(styles,/\.store-links a span\{font-size:16px;margin-left:auto\}/);
   assert.match(styles,/\.home-sections \.pickle-prompt-trigger\{color:#fff\}/);
   assert.match(styles,/\.study-field-section \.start-actions\{[^}]*flex-direction:row;justify-content:center/);

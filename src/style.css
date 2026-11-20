@@ -145,6 +145,7 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 .home-sections .home-intro h1,.home-sections .home-intro h1 span,.home-sections .intro-copy{color:#fff}
 .home-sections .store-links a{border-color:#fff;color:#fff}
 .home-sections .store-links a{text-align:left;justify-content:flex-start}
+.home-sections .store-links a img{filter:brightness(0) invert(1)}
 .home-sections .store-links a:hover{background:rgba(255,255,255,.12)}
 .home-sections .pickle-prompt-trigger{color:#fff}
 @media(max-width:760px){.home-sections .home-intro{padding:44px 20px}.home-sections .home-intro h1{font-size:var(--type-heading-04-size);line-height:var(--type-heading-04-line)}}
