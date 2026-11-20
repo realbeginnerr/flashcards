@@ -1,10 +1,12 @@
 import {CATEGORIES,emptyState,eligible,unknownCards,nextBatch,rate,completeBatch,resetScope,bilingual,escapeHtml as e} from './core.js';
 import {loadCatalog,configured,currentAdmin,login,logout,currentUser,userLogin,requestPasswordSetup,userLogout,loadStudyState,saveStudyState,requestAccountDeletion,writeTerm,deleteTerm,seedCatalog} from './cloud.js';
 const main=document.querySelector('#main'),notice=document.querySelector('#notice');
-let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve(),recallInterval=null;
+let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve(),recallInterval=null,expandedCategories=new Set();
 const RECALL_LIMIT_MS=Number(window.__RECALL_LIMIT_MS__)||10000;
 const selected=(v,target)=>v===target?' checked':'';
 const HOME_CATEGORIES=['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅'];
+const HOME_TOP_CATEGORIES=HOME_CATEGORIES.filter(category=>category!=='피그마');
+const HOME_SUBCATEGORIES={'UX/UI 디자인':['피그마']};
 const HOME_CATEGORY_LABELS={'전체':'전체','AI 툴':'AI','개발':'개발','UX/UI 디자인':'UXUI 디자인','피그마':'피그마','마케팅':'마케팅, 브랜딩'};
 const button=(text,action,style='primary',extra='')=>`<button class="btn ${style}" type="button" data-action="${action}" ${extra}>${text}</button>`;
 const tags=t=>`<div class="term-meta"><div class="tags">${t.categories.map(c=>`<span>${e(c)}</span>`).join('')}</div><span class="mention-frequency" aria-label="회의와 프로젝트 문서 언급 빈도 ${t.importance}점"><span aria-hidden="true">${'★'.repeat(t.importance)}${'☆'.repeat(5-t.importance)}</span></span></div>`;
@@ -70,11 +72,20 @@ function categoryProgress(category){
  const categoryTerms=eligible(terms,category),known=categoryTerms.filter(term=>state.ratings[term.id]==='known').length;
  return `${known}/${categoryTerms.length}`;
 }
+function categoryRow(category,{child=false,expandable=false,expanded=false}={}){
+ return `<div class="category-row${child?' category-child':''}"><label class="category-option"><input type="radio" name="scope" value="${e(category)}"${selected(scope,category)}><span class="radio-mark" aria-hidden="true"></span><span class="category-name">${e(HOME_CATEGORY_LABELS[category])}</span><span class="category-count">${categoryProgress(category)}<span>개</span></span></label>${expandable?`<button class="category-toggle" type="button" data-action="toggle-category" data-category="${e(category)}" aria-label="${e(HOME_CATEGORY_LABELS[category])} 하위 카테고리 ${expanded?'접기':'펼치기'}" aria-expanded="${expanded}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>`:''}</div>`;
+}
+function categoryListMarkup(){
+ return HOME_TOP_CATEGORIES.map(category=>{
+  const children=HOME_SUBCATEGORIES[category]||[],expanded=children.length&&(expandedCategories.has(category)||children.includes(scope));
+  return `<div class="category-group">${categoryRow(category,{expandable:Boolean(children.length),expanded})}${expanded?`<div class="category-children">${children.map(child=>categoryRow(child,{child:true})).join('')}</div>`:''}</div>`;
+ }).join('');
+}
 function home(){
  session=null;dirty=false;editing=null;
  const total=eligible(terms,scope),done=new Set(state.completed[scope]||[]),remaining=total.filter(t=>!done.has(t.id)).length;
  const unknown=unknownCards(terms,state).length;
- render(`<section class="home-grid"><div class="home-intro"><h1 tabindex="-1">AI시대 뒤처지긴 싫고 시간은 없고,<br><span>하루 용어 딱 10개씩만.</span></h1><p class="intro-copy">내 AI 비서 "피클"을 연결해 두면<br>매일 저녁 8시, 용어 퀴즈 전화가 와요. 물론 ChatGPT에게 단어 질문해달라고 해도 돼요. 단, ChatGPT는 정해진 시간에 내게 전화를 해주지는 못해요.</p><div class="store-links" aria-label="피클 앱 다운로드"><a href="https://play.google.com/store/apps/details?id=com.pickle.client" target="_blank" rel="noopener noreferrer"><img src="./google-play.svg" alt="">Google Play에서 받기 <span aria-hidden="true">↗</span></a><a href="https://apps.apple.com/kr/app/id6795790129" target="_blank" rel="noopener noreferrer"><img src="./app-store.svg" alt="">App Store에서 받기 <span aria-hidden="true">↗</span></a></div></div><section class="start-panel" aria-labelledby="start-title"><div class="panel-heading"><p class="eyebrow">무엇을 공부할까요?</p><h2 id="start-title">오늘의 학습 분야</h2></div><fieldset class="category-list"><legend class="sr-only">학습 분야 선택</legend>${HOME_CATEGORIES.map((c,i)=>`<label class="category-option"><input type="radio" name="scope" value="${e(c)}"${selected(scope,c)}><span class="category-index">0${i+1}</span><span class="category-name">${e(HOME_CATEGORY_LABELS[c])}</span><span class="category-count">${categoryProgress(c)}<span>개</span></span><span class="radio-mark" aria-hidden="true"></span></label>`).join('')}</fieldset><div class="start-actions">${button(total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요','start','primary',!total.length?'disabled':'')}${button(`<span class="review-copy">틀린 용어 복습 <span class="count">${unknown}</span></span>${arrow}`,'review','secondary')}</div></section></section>`,{wide:true});
+ render(`<section class="home-grid"><div class="home-intro"><h1 tabindex="-1">AI시대 뒤처지긴 싫고 시간은 없고,<br><span>하루 용어 딱 10개씩만.</span></h1><p class="intro-copy">내 AI 비서 "피클"을 연결해 두면<br>매일 저녁 8시, 용어 퀴즈 전화가 와요. 물론 ChatGPT에게 단어 질문해달라고 해도 돼요. 단, ChatGPT는 정해진 시간에 내게 전화를 해주지는 못해요.</p><div class="store-links" aria-label="피클 앱 다운로드"><a href="https://play.google.com/store/apps/details?id=com.pickle.client" target="_blank" rel="noopener noreferrer"><img src="./google-play.svg" alt="">Google Play에서 받기 <span aria-hidden="true">↗</span></a><a href="https://apps.apple.com/kr/app/id6795790129" target="_blank" rel="noopener noreferrer"><img src="./app-store.svg" alt="">App Store에서 받기 <span aria-hidden="true">↗</span></a></div></div><section class="start-panel" aria-labelledby="start-title"><div class="panel-heading"><p class="eyebrow">무엇을 공부할까요?</p><h2 id="start-title">오늘의 학습 분야</h2></div><fieldset class="category-list"><legend class="sr-only">학습 분야 선택</legend>${categoryListMarkup()}</fieldset><div class="start-actions">${button(total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요','start','primary',!total.length?'disabled':'')}${button(`<span class="review-copy">틀린 용어 복습 <span class="count">${unknown}</span></span>${arrow}`,'review','secondary')}</div></section></section>`,{wide:true});
  main.querySelector('.intro-copy').innerHTML='하루 단어 10개, 10분이면 충분해요.<br>저녁 먹고 릴스 켜기 전에, 딱 한 번만 해보세요.';
  const storeLinks=main.querySelector('.store-links'),downloadLinks=storeLinks.querySelectorAll('a');
  storeLinks.setAttribute('aria-label','ChatGPT 앱 다운로드');downloadLinks[0].href='https://play.google.com/store/apps/details?id=com.openai.chatgpt';downloadLinks[1].href='https://apps.apple.com/app/openai-chatgpt/id6448311069';
@@ -319,6 +330,11 @@ main.addEventListener('click',async ev=>{
    case 'show-pickle-prompt':main.querySelector('.pickle-prompt-dialog')?.showModal();break;
    case 'copy-pickle-prompt':await copyPicklePrompt(target);break;
    case 'close-pickle-prompt':target.closest('dialog')?.close();break;
+   case 'toggle-category':{
+    ev.preventDefault();const category=target.dataset.category;
+    if(expandedCategories.has(category))expandedCategories.delete(category);else expandedCategories.add(category);
+    home();break;
+   }
    case 'start':begin();break;
    case 'review':begin('review');break;
   case 'undo-rating':undoRating();break;
