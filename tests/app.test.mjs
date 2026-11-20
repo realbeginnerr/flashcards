@@ -226,6 +226,12 @@ test('homepage shows the requested study copy and official ChatGPT app links',as
 });
 test('homepage shows top categories with leading radios and expands Figma below UXUI',async()=>{
  const ui=await setup();try{
+  const sections=ui.doc.querySelector('.home-sections');
+  assert.equal(sections.children[0].className,'study-field-section');
+  assert.equal(sections.children[1].className,'home-intro');
+  assert.match(ui.doc.querySelector('.category-list').className,/bento-grid/);
+  assert.match(styles,/\.bento-grid\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(styles,/\.home-sections \.home-intro\{[^}]*text-align:center/);
   let options=[...ui.doc.querySelectorAll('.category-option')];
   assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','UXUI 디자인','마케팅, 브랜딩']);
   assert.equal(ui.doc.querySelector('.category-index'),null);
