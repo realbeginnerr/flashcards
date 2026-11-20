@@ -23,7 +23,7 @@ const referenceMedia=term=>{
 };
 const arrow='<span aria-hidden="true">↗</span>';
 const tapHint='<span class="tap-hint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 12V6a2 2 0 0 1 4 0v5-2a2 2 0 0 1 4 0v3-1a2 2 0 0 1 4 0v4c0 4-2.5 7-6 7h-1c-2.1 0-3.7-.9-4.9-2.4l-4-5.1a1.8 1.8 0 0 1 2.8-2.2L9 14.5M6 5 4 3M5 8H2M9 2V0"/></svg></span>';
-const PICKLE_PROMPT=`다음 웹사이트에 로그인해 내 단어 학습 현황을 확인하고, 매주 월~금 저녁 9시에 전화로 단어 암기 테스트를 진행해 줘.
+const PICKLE_PROMPT=`다음 웹사이트에 로그인해 내 단어 학습 현황을 확인하고, 매주 월~금 저녁 9시에 알림 띄워. 음성으로 단어 암기 테스트를 진행해 줘.
 
 https://realbeginnerr.github.io/flashcards/
 

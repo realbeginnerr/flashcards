@@ -199,12 +199,12 @@ test('homepage shows the requested study copy and official ChatGPT app links',as
   ui.click('show-pickle-prompt');
   const prompt=ui.doc.querySelector('.pickle-prompt-dialog');
   assert.ok(prompt.open);
-  assert.match(prompt.textContent,/매주 월~금 저녁 9시에 전화로 단어 암기 테스트/);
+  assert.match(prompt.textContent,/매주 월~금 저녁 9시에 알림 띄워\. 음성으로 단어 암기 테스트/);
   assert.match(prompt.textContent,/https:\/\/realbeginnerr.github.io\/flashcards\//);
   assert.match(prompt.textContent,/매일 단어 10개씩 질문한다/);
   assert.ok(prompt.querySelector('.prompt-copy-button .copy-icon'));
   ui.click('copy-pickle-prompt');await wait(0);
-  assert.match(ui.clipboardText(),/매주 월~금 저녁 9시에 전화로 단어 암기 테스트/);
+  assert.match(ui.clipboardText(),/매주 월~금 저녁 9시에 알림 띄워\. 음성으로 단어 암기 테스트/);
   assert.ok(prompt.querySelector('.prompt-copy-button').classList.contains('copied'));
   ui.click('close-pickle-prompt');assert.equal(prompt.open,false);
   assert.equal(ui.doc.querySelector('.sample'),null);
