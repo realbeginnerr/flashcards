@@ -232,6 +232,9 @@ test('homepage shows top categories with leading radios and expands Figma below 
   assert.match(ui.doc.querySelector('.category-list').className,/bento-grid/);
   assert.match(styles,/\.bento-grid\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(styles,/\.home-sections \.home-intro\{[^}]*text-align:center/);
+  assert.match(styles,/\.study-field-section \.start-actions\{[^}]*flex-direction:row;justify-content:center/);
+  assert.match(styles,/\.study-field-section \.start-actions>\.btn\{width:200px/);
+  assert.match(styles,/@media\(max-width:760px\)\{\.study-field-section \.start-actions\{[^}]*flex-direction:column\}\.study-field-section \.start-actions>\.btn\{width:100%\}\}/);
   let options=[...ui.doc.querySelectorAll('.category-option')];
   assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','UXUI 디자인','마케팅, 브랜딩']);
   assert.equal(ui.doc.querySelector('.category-index'),null);
