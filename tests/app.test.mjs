@@ -223,13 +223,16 @@ test('homepage shows the requested study copy and official ChatGPT app links',as
   assert.doesNotMatch(ui.doc.querySelector('.start-panel').textContent,/한 번에 10장씩, 내 속도대로/);
  }finally{ui.close();}
 });
-test('homepage shows top categories with leading radios and always shows Figma below UXUI',async()=>{
+test('homepage uses equal three-column cards and keeps UXUI whole and Figma choices inside one card',async()=>{
  const ui=await setup();try{
   const sections=ui.doc.querySelector('.home-sections');
   assert.equal(sections.children[0].className,'study-field-section');
   assert.equal(sections.children[1].className,'home-intro');
   assert.match(ui.doc.querySelector('.category-list').className,/bento-grid/);
   assert.match(styles,/\.bento-grid\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(styles,/grid-auto-rows:156px/);
+  assert.match(styles,/\.study-field-section\{width:100%;max-width:none/);
+  assert.match(styles,/@media\(max-width:760px\)\{\.home-sections\{gap:64px\}.*\.bento-grid\{grid-template-columns:1fr;grid-auto-rows:140px/);
   assert.match(styles,/\.home-sections \.home-intro\{[^}]*text-align:center/);
   assert.match(styles,/\.home-sections \.home-intro\{[^}]*background:var\(--green\);color:#fff/);
   assert.match(styles,/\.home-sections \.home-intro h1\{font-size:var\(--type-heading-05-size\);line-height:var\(--type-heading-05-line\)\}/);
@@ -243,7 +246,11 @@ test('homepage shows top categories with leading radios and always shows Figma b
   assert.match(styles,/\.study-field-section \.start-actions>\.btn\{width:200px/);
   assert.match(styles,/@media\(max-width:760px\)\{\.study-field-section \.start-actions\{[^}]*flex-direction:column\}\.study-field-section \.start-actions>\.btn\{width:100%\}\}/);
   const options=[...ui.doc.querySelectorAll('.category-option')];
-  assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','UXUI 디자인','피그마','마케팅, 브랜딩']);
+  assert.equal(ui.doc.querySelectorAll('.category-group').length,5);
+  assert.equal(ui.doc.querySelector('.category-composite .category-card-title').textContent,'UXUI 디자인');
+  const uxuiChoices=[...ui.doc.querySelectorAll('.category-composite .category-suboption')];
+  assert.deepEqual(uxuiChoices.map(option=>option.querySelector('.category-name').textContent),['전체','피그마']);
+  assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','전체','피그마','마케팅, 브랜딩']);
   assert.equal(ui.doc.querySelector('.category-index'),null);
   for(const option of options){
    assert.equal(option.children[1].className,'radio-mark');
@@ -251,7 +258,8 @@ test('homepage shows top categories with leading radios and always shows Figma b
   }
   assert.deepEqual(options.map(option=>option.querySelector('input').value),['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅']);
   assert.equal(ui.doc.querySelector('[data-action="toggle-category"]'),null);
-  assert.ok(ui.doc.querySelector('.category-children .category-child input[value="피그마"]'));
+  assert.ok(ui.doc.querySelector('.category-composite input[value="피그마"]'));
+  assert.match(styles,/\.category-suboptions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  }finally{ui.close();}
 });
 test('header shows only the logo name without a side tagline',async()=>{

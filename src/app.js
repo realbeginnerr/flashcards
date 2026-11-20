@@ -72,13 +72,17 @@ function categoryProgress(category){
  const categoryTerms=eligible(terms,category),known=categoryTerms.filter(term=>state.ratings[term.id]==='known').length;
  return `${known}/${categoryTerms.length}`;
 }
-function categoryRow(category,{child=false}={}){
- return `<div class="category-row${child?' category-child':''}"><label class="category-option"><input type="radio" name="scope" value="${e(category)}"${selected(scope,category)}><span class="radio-mark" aria-hidden="true"></span><span class="category-name">${e(HOME_CATEGORY_LABELS[category])}</span><span class="category-count">${categoryProgress(category)}<span>개</span></span></label></div>`;
+function categoryOption(category,label=HOME_CATEGORY_LABELS[category],extraClass=''){
+ return `<label class="category-option${extraClass?' '+extraClass:''}"><input type="radio" name="scope" value="${e(category)}"${selected(scope,category)}><span class="radio-mark" aria-hidden="true"></span><span class="category-name">${e(label)}</span><span class="category-count">${categoryProgress(category)}<span>개</span></span></label>`;
+}
+function categoryRow(category){
+ return `<div class="category-row">${categoryOption(category)}</div>`;
 }
 function categoryListMarkup(){
- return HOME_TOP_CATEGORIES.map((category,index)=>{
+ return HOME_TOP_CATEGORIES.map(category=>{
   const children=HOME_SUBCATEGORIES[category]||[];
-  return `<div class="category-group category-group-${index+1}">${categoryRow(category)}${children.length?`<div class="category-children">${children.map(child=>categoryRow(child,{child:true})).join('')}</div>`:''}</div>`;
+  if(!children.length)return `<div class="category-group">${categoryRow(category)}</div>`;
+  return `<div class="category-group"><div class="category-row category-composite"><h3 class="category-card-title">${e(HOME_CATEGORY_LABELS[category])}</h3><div class="category-suboptions">${categoryOption(category,'전체','category-suboption')}${children.map(child=>categoryOption(child,HOME_CATEGORY_LABELS[child],'category-suboption')).join('')}</div></div></div>`;
  }).join('');
 }
 function home(){
