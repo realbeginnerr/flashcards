@@ -149,8 +149,9 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 
 /* Highlight the centered introduction as its own brand-color section. */
 .home-sections .home-intro{max-width:1040px;padding:clamp(48px,7vw,72px) clamp(24px,6vw,72px);background:var(--green);color:#fff}
+.home-sections .home-intro h1{font-size:var(--type-heading-05-size);line-height:var(--type-heading-05-line)}
 .home-sections .home-intro h1,.home-sections .home-intro h1 span,.home-sections .intro-copy{color:#fff}
 .home-sections .store-links a{border-color:#fff;color:#fff}
 .home-sections .store-links a:hover{background:rgba(255,255,255,.12)}
 .home-sections .pickle-prompt-trigger{color:#fff}
-@media(max-width:760px){.home-sections .home-intro{padding:44px 20px}}
+@media(max-width:760px){.home-sections .home-intro{padding:44px 20px}.home-sections .home-intro h1{font-size:var(--type-heading-04-size);line-height:var(--type-heading-04-line)}}

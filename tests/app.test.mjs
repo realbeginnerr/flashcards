@@ -233,6 +233,8 @@ test('homepage shows top categories with leading radios and expands Figma below 
   assert.match(styles,/\.bento-grid\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(styles,/\.home-sections \.home-intro\{[^}]*text-align:center/);
   assert.match(styles,/\.home-sections \.home-intro\{[^}]*background:var\(--green\);color:#fff/);
+  assert.match(styles,/\.home-sections \.home-intro h1\{font-size:var\(--type-heading-05-size\);line-height:var\(--type-heading-05-line\)\}/);
+  assert.match(styles,/@media\(max-width:760px\)\{\.home-sections \.home-intro\{padding:44px 20px\}\.home-sections \.home-intro h1\{font-size:var\(--type-heading-04-size\);line-height:var\(--type-heading-04-line\)\}\}/);
   assert.match(styles,/\.home-sections \.home-intro h1,[^}]*\.home-sections \.intro-copy\{color:#fff\}/);
   assert.match(styles,/\.home-sections \.store-links a\{border-color:#fff;color:#fff\}/);
   assert.match(styles,/\.home-sections \.pickle-prompt-trigger\{color:#fff\}/);
