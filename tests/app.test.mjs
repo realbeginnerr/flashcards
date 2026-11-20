@@ -46,7 +46,6 @@ test('homepage category counts show known terms over all eligible terms',async()
  let progress=core.rate(core.emptyState(),terms[0].id,'known');
  progress=core.rate(progress,terms[1].id,'unknown');
  const ui=await setup({cloudState:progress});try{
-  ui.click('toggle-category');
   for(const category of ['전체',...core.CATEGORIES]){
    const option=ui.doc.querySelector(`input[value="${category}"]`).closest('.category-option');
    const categoryTerms=core.eligible(terms,category);
@@ -224,7 +223,7 @@ test('homepage shows the requested study copy and official ChatGPT app links',as
   assert.doesNotMatch(ui.doc.querySelector('.start-panel').textContent,/한 번에 10장씩, 내 속도대로/);
  }finally{ui.close();}
 });
-test('homepage shows top categories with leading radios and expands Figma below UXUI',async()=>{
+test('homepage shows top categories with leading radios and always shows Figma below UXUI',async()=>{
  const ui=await setup();try{
   const sections=ui.doc.querySelector('.home-sections');
   assert.equal(sections.children[0].className,'study-field-section');
@@ -243,21 +242,15 @@ test('homepage shows top categories with leading radios and expands Figma below 
   assert.match(styles,/\.study-field-section \.start-actions\{[^}]*flex-direction:row;justify-content:center/);
   assert.match(styles,/\.study-field-section \.start-actions>\.btn\{width:200px/);
   assert.match(styles,/@media\(max-width:760px\)\{\.study-field-section \.start-actions\{[^}]*flex-direction:column\}\.study-field-section \.start-actions>\.btn\{width:100%\}\}/);
-  let options=[...ui.doc.querySelectorAll('.category-option')];
-  assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','UXUI 디자인','마케팅, 브랜딩']);
+  const options=[...ui.doc.querySelectorAll('.category-option')];
+  assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','UXUI 디자인','피그마','마케팅, 브랜딩']);
   assert.equal(ui.doc.querySelector('.category-index'),null);
   for(const option of options){
    assert.equal(option.children[1].className,'radio-mark');
    assert.equal(option.querySelector('.category-name').nextElementSibling.className,'category-count');
   }
-  const toggle=ui.doc.querySelector('[data-action="toggle-category"]');
-  assert.equal(toggle.closest('.category-row').querySelector('.category-name').textContent,'UXUI 디자인');
-  assert.equal(toggle.getAttribute('aria-expanded'),'false');
-  assert.equal(ui.doc.querySelector('input[value="피그마"]'),null);
-  ui.click('toggle-category');
-  options=[...ui.doc.querySelectorAll('.category-option')];
   assert.deepEqual(options.map(option=>option.querySelector('input').value),['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅']);
-  assert.equal(ui.doc.querySelector('[data-action="toggle-category"]').getAttribute('aria-expanded'),'true');
+  assert.equal(ui.doc.querySelector('[data-action="toggle-category"]'),null);
   assert.ok(ui.doc.querySelector('.category-children .category-child input[value="피그마"]'));
  }finally{ui.close();}
 });

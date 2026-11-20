@@ -111,12 +111,8 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 .category-name{flex:none}
 .category-count{margin-left:0}
 .radio-mark{order:-1}
-.category-toggle{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;background:transparent;color:var(--muted);flex:none}
-.category-toggle svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:transform .16s}
-.category-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
-.category-children{display:flex;flex-direction:column;gap:6px;margin-left:24px;animation:category-expand .16s ease-out}
+.category-children{display:flex;flex-direction:column;gap:6px;margin-left:24px}
 .category-child{min-height:54px;background:#fff}
-@keyframes category-expand{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:760px){.category-row{min-height:56px;padding:12px}.category-option{padding:0}.category-children{margin-left:20px}}
 
 /* Home: learning Bento first, centered introduction second. */
@@ -133,7 +129,6 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 .bento-grid .category-group-5{grid-column:span 3}
 .bento-grid .category-row{min-height:112px;padding:20px;background:#fff;align-items:flex-start}
 .bento-grid .category-option{align-items:flex-start;padding-top:3px}
-.bento-grid .category-toggle{margin-top:-4px;margin-right:-6px}
 .bento-grid .category-children{margin-left:0}
 .bento-grid .category-child{min-height:74px;background:var(--paper)}
 .study-field-section .start-actions{width:100%;margin:28px auto 0;flex-direction:row;justify-content:center}

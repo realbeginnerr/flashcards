@@ -1,7 +1,7 @@
 import {CATEGORIES,emptyState,eligible,unknownCards,nextBatch,rate,completeBatch,resetScope,bilingual,escapeHtml as e} from './core.js';
 import {loadCatalog,configured,currentAdmin,login,logout,currentUser,userLogin,requestPasswordSetup,userLogout,loadStudyState,saveStudyState,requestAccountDeletion,writeTerm,deleteTerm,seedCatalog} from './cloud.js';
 const main=document.querySelector('#main'),notice=document.querySelector('#notice');
-let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve(),recallInterval=null,expandedCategories=new Set();
+let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve(),recallInterval=null;
 const RECALL_LIMIT_MS=Number(window.__RECALL_LIMIT_MS__)||10000;
 const selected=(v,target)=>v===target?' checked':'';
 const HOME_CATEGORIES=['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅'];
@@ -72,13 +72,13 @@ function categoryProgress(category){
  const categoryTerms=eligible(terms,category),known=categoryTerms.filter(term=>state.ratings[term.id]==='known').length;
  return `${known}/${categoryTerms.length}`;
 }
-function categoryRow(category,{child=false,expandable=false,expanded=false}={}){
- return `<div class="category-row${child?' category-child':''}"><label class="category-option"><input type="radio" name="scope" value="${e(category)}"${selected(scope,category)}><span class="radio-mark" aria-hidden="true"></span><span class="category-name">${e(HOME_CATEGORY_LABELS[category])}</span><span class="category-count">${categoryProgress(category)}<span>개</span></span></label>${expandable?`<button class="category-toggle" type="button" data-action="toggle-category" data-category="${e(category)}" aria-label="${e(HOME_CATEGORY_LABELS[category])} 하위 카테고리 ${expanded?'접기':'펼치기'}" aria-expanded="${expanded}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>`:''}</div>`;
+function categoryRow(category,{child=false}={}){
+ return `<div class="category-row${child?' category-child':''}"><label class="category-option"><input type="radio" name="scope" value="${e(category)}"${selected(scope,category)}><span class="radio-mark" aria-hidden="true"></span><span class="category-name">${e(HOME_CATEGORY_LABELS[category])}</span><span class="category-count">${categoryProgress(category)}<span>개</span></span></label></div>`;
 }
 function categoryListMarkup(){
  return HOME_TOP_CATEGORIES.map((category,index)=>{
-  const children=HOME_SUBCATEGORIES[category]||[],expanded=children.length&&(expandedCategories.has(category)||children.includes(scope));
-  return `<div class="category-group category-group-${index+1}">${categoryRow(category,{expandable:Boolean(children.length),expanded})}${expanded?`<div class="category-children">${children.map(child=>categoryRow(child,{child:true})).join('')}</div>`:''}</div>`;
+  const children=HOME_SUBCATEGORIES[category]||[];
+  return `<div class="category-group category-group-${index+1}">${categoryRow(category)}${children.length?`<div class="category-children">${children.map(child=>categoryRow(child,{child:true})).join('')}</div>`:''}</div>`;
  }).join('');
 }
 function home(){
@@ -330,11 +330,6 @@ main.addEventListener('click',async ev=>{
    case 'show-pickle-prompt':main.querySelector('.pickle-prompt-dialog')?.showModal();break;
    case 'copy-pickle-prompt':await copyPicklePrompt(target);break;
    case 'close-pickle-prompt':target.closest('dialog')?.close();break;
-   case 'toggle-category':{
-    ev.preventDefault();const category=target.dataset.category;
-    if(expandedCategories.has(category))expandedCategories.delete(category);else expandedCategories.add(category);
-    home();break;
-   }
    case 'start':begin();break;
    case 'review':begin('review');break;
   case 'undo-rating':undoRating();break;
