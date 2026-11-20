@@ -237,6 +237,8 @@ test('homepage shows top categories with leading radios and expands Figma below 
   assert.match(styles,/@media\(max-width:760px\)\{\.home-sections \.home-intro\{padding:44px 20px\}\.home-sections \.home-intro h1\{font-size:var\(--type-heading-04-size\);line-height:var\(--type-heading-04-line\)\}\}/);
   assert.match(styles,/\.home-sections \.home-intro h1,[^}]*\.home-sections \.intro-copy\{color:#fff\}/);
   assert.match(styles,/\.home-sections \.store-links a\{border-color:#fff;color:#fff\}/);
+  assert.match(styles,/\.home-sections \.store-links a\{text-align:left;justify-content:flex-start\}/);
+  assert.match(styles,/\.store-links a span\{font-size:16px;margin-left:auto\}/);
   assert.match(styles,/\.home-sections \.pickle-prompt-trigger\{color:#fff\}/);
   assert.match(styles,/\.study-field-section \.start-actions\{[^}]*flex-direction:row;justify-content:center/);
   assert.match(styles,/\.study-field-section \.start-actions>\.btn\{width:200px/);
