@@ -72,8 +72,8 @@ function categoryProgress(category){
  const categoryTerms=eligible(terms,category),known=categoryTerms.filter(term=>state.ratings[term.id]==='known').length;
  return `${known}/${categoryTerms.length}`;
 }
-function categoryOption(category,label=HOME_CATEGORY_LABELS[category],extraClass=''){
- return `<label class="category-option${extraClass?' '+extraClass:''}"><input type="radio" name="scope" value="${e(category)}"${selected(scope,category)}><span class="radio-mark" aria-hidden="true"></span><span class="category-name">${e(label)}</span><span class="category-count">${categoryProgress(category)}<span>개</span></span></label>`;
+function categoryOption(category,label=HOME_CATEGORY_LABELS[category],extraClass='',showCount=true){
+ return `<label class="category-option${extraClass?' '+extraClass:''}"><input type="radio" name="scope" value="${e(category)}"${selected(scope,category)}><span class="radio-mark" aria-hidden="true"></span><span class="category-name">${e(label)}</span>${showCount?`<span class="category-count">${categoryProgress(category)}<span>개</span></span>`:''}</label>`;
 }
 function categoryRow(category){
  return `<div class="category-row">${categoryOption(category)}</div>`;
@@ -82,7 +82,7 @@ function categoryListMarkup(){
  return HOME_TOP_CATEGORIES.map(category=>{
   const children=HOME_SUBCATEGORIES[category]||[];
   if(!children.length)return `<div class="category-group">${categoryRow(category)}</div>`;
-  return `<div class="category-group"><div class="category-row category-composite"><h3 class="category-card-title">${e(HOME_CATEGORY_LABELS[category])}</h3><div class="category-suboptions">${categoryOption(category,'전체','category-suboption')}${children.map(child=>categoryOption(child,HOME_CATEGORY_LABELS[child],'category-suboption')).join('')}</div></div></div>`;
+  return `<div class="category-group"><div class="category-row category-composite" data-action="select-category" data-category="${e(category)}"><h3 class="category-card-title">${e(HOME_CATEGORY_LABELS[category])}</h3><div class="category-suboptions">${categoryOption(category,'전체','category-suboption',false)}${children.map(child=>categoryOption(child,HOME_CATEGORY_LABELS[child],'category-suboption',false)).join('')}</div></div></div>`;
  }).join('');
 }
 function home(){
@@ -327,6 +327,7 @@ main.addEventListener('click',async ev=>{
   return;
  }
  if(target.disabled)return;const action=target.dataset.action;
+ if(action==='select-category'&&ev.target.closest('.category-suboption'))return;
   if(['known','unknown'].includes(action))return evaluate(action);
  if(busy&&action!=='exit')return;
  switch(action){
@@ -334,6 +335,7 @@ main.addEventListener('click',async ev=>{
    case 'show-pickle-prompt':main.querySelector('.pickle-prompt-dialog')?.showModal();break;
    case 'copy-pickle-prompt':await copyPicklePrompt(target);break;
    case 'close-pickle-prompt':target.closest('dialog')?.close();break;
+   case 'select-category':scope=target.dataset.category;home();break;
    case 'start':begin();break;
    case 'review':begin('review');break;
   case 'undo-rating':undoRating();break;

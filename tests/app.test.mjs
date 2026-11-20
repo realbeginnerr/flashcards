@@ -31,7 +31,7 @@ async function setup({cards=terms,state,hash='',motion=false,mobile=false,authen
 }
 test('homepage shows actual category counts and 10-card session with bilingual term',async()=>{
  const ui=await setup();try{
- assert.match(ui.doc.body.textContent,/239/);assert.match(ui.doc.body.textContent,/145/);
+ assert.match(ui.doc.body.textContent,/239/);assert.match(ui.doc.body.textContent,/140/);
  ui.click('start');assert.match(ui.doc.querySelector('.numeric').textContent,/1.*10/);
  assert.equal(ui.doc.querySelector('h1').textContent,terms[0].term);assert.equal(ui.doc.querySelector('.english').textContent,terms[0].englishTerm);
  assert.equal(ui.doc.querySelector('.mention-frequency').getAttribute('aria-label'),`회의와 프로젝트 문서 언급 빈도 ${terms[0].importance}점`);
@@ -42,7 +42,7 @@ test('homepage shows actual category counts and 10-card session with bilingual t
  assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
  }finally{ui.close();}
 });
-test('homepage category counts show known terms over all eligible terms',async()=>{
+test('homepage category counts show progress except in compact UXUI radio choices',async()=>{
  let progress=core.rate(core.emptyState(),terms[0].id,'known');
  progress=core.rate(progress,terms[1].id,'unknown');
  const ui=await setup({cloudState:progress});try{
@@ -50,7 +50,9 @@ test('homepage category counts show known terms over all eligible terms',async()
    const option=ui.doc.querySelector(`input[value="${category}"]`).closest('.category-option');
    const categoryTerms=core.eligible(terms,category);
    const known=categoryTerms.filter(term=>progress.ratings[term.id]==='known').length;
-   assert.equal(option.querySelector('.category-count').textContent,`${known}/${categoryTerms.length}개`);
+   const count=option.querySelector('.category-count');
+   if(['UX/UI 디자인','피그마'].includes(category))assert.equal(count,null);
+   else assert.equal(count.textContent,`${known}/${categoryTerms.length}개`);
   }
  }finally{ui.close();}
 });
@@ -252,16 +254,24 @@ test('homepage fills three-card and two-card Bento rows and keeps UXUI choices i
   assert.equal(ui.doc.querySelector('.category-composite .category-card-title').textContent,'UXUI 디자인');
   const uxuiChoices=[...ui.doc.querySelectorAll('.category-composite .category-suboption')];
   assert.deepEqual(uxuiChoices.map(option=>option.querySelector('.category-name').textContent),['전체','피그마']);
+  assert.ok(uxuiChoices.every(option=>option.querySelector('.category-count')===null));
   assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','전체','피그마','마케팅, 브랜딩']);
   assert.equal(ui.doc.querySelector('.category-index'),null);
   for(const option of options){
    assert.equal(option.children[1].className,'radio-mark');
-   assert.equal(option.querySelector('.category-name').nextElementSibling.className,'category-count');
+   if(!option.classList.contains('category-suboption'))assert.equal(option.querySelector('.category-name').nextElementSibling.className,'category-count');
   }
   assert.deepEqual(options.map(option=>option.querySelector('input').value),['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅']);
   assert.equal(ui.doc.querySelector('[data-action="toggle-category"]'),null);
   assert.ok(ui.doc.querySelector('.category-composite input[value="피그마"]'));
-  assert.match(styles,/\.category-suboptions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  ui.doc.querySelector('.category-composite input[value="피그마"]').click();
+  assert.equal(ui.doc.querySelector('.category-composite input[value="피그마"]').checked,true);
+  ui.click('select-category');
+  assert.equal(ui.doc.querySelector('.category-composite input[value="UX/UI 디자인"]').checked,true);
+  assert.equal(ui.doc.querySelector('.category-composite input[value="피그마"]').checked,false);
+  assert.match(styles,/\.category-suboptions\{display:flex;align-items:center;gap:24px/);
+  assert.match(styles,/\.category-suboption\{min-height:0;padding:0;border:0;background:transparent/);
+  assert.match(styles,/\.category-suboption:has\(input:checked\)\{border-color:transparent;background:transparent\}/);
  }finally{ui.close();}
 });
 test('header shows only the logo name without a side tagline',async()=>{
