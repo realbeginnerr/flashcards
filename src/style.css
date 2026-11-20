@@ -82,9 +82,9 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 /* Keep study position left and the 10-second elapsed-time indicator at the far right. */
 .study-toolbar{justify-content:space-between;gap:16px}
 .study-position{display:flex;align-items:center;gap:8px;min-width:0}
-.study-back{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;background:transparent;color:var(--muted);flex:none}
-.study-back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.study-back:disabled{opacity:.25;cursor:default}
+.study-step{display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;background:transparent;color:var(--muted);flex:none}
+.study-step svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.study-step:disabled{opacity:.25;cursor:default}
 .session-name{flex:none}
 .recall-clock{display:flex;align-items:center;gap:8px;margin-left:auto;flex:none}
 .timer-text{color:var(--muted);white-space:nowrap}

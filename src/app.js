@@ -85,11 +85,11 @@ function begin(mode='normal',queue){
   let cards=nextBatch(terms,state,scope);
   if(!cards.length&&eligible(terms,scope).length){state=resetScope(state,scope);persist();cards=nextBatch(terms,state,scope);}
   if(!cards.length)return empty('이 분야에 등록된 용어가 없어요.','다른 분야를 선택해보세요.');
-  session={mode,scope,queue:cards,ids:cards.map(c=>c.id),index:0,back:false,ratings:{},history:[],done:false};
+  session={mode,scope,queue:cards,ids:cards.map(c=>c.id),index:0,back:false,ratings:{},history:[],future:[],done:false};
  }else{
   const cards=queue||unknownCards(terms,state);
   if(!cards.length)return empty('모르는 용어가 아직 없어요.','학습 중 몰라요로 표시한 카드를 여기서 다시 만날 수 있어요.');
-  session={mode,scope:'전체',remaining:cards.slice(10),queue:cards.slice(0,10),index:0,back:false,ratings:{},history:[],done:false};
+  session={mode,scope:'전체',remaining:cards.slice(10),queue:cards.slice(0,10),index:0,back:false,ratings:{},history:[],future:[],done:false};
  }
  study();
 }
@@ -100,7 +100,9 @@ function study(){
  const elapsed=Math.min(RECALL_LIMIT_MS,Date.now()-s.timerStartedAt),elapsedSeconds=Math.min(10,Math.floor(elapsed/RECALL_LIMIT_MS*10));
  const english=bilingual(term);const name=s.mode==='normal'?s.scope+' 용어 학습 중':'모르는 용어 복습';
  render(`<section class="study-shell ${s.back?'is-back':''}"><div class="study-toolbar"><div class="study-position"><span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="recall-clock"><div class="progress recall-timer" role="progressbar" aria-label="뜻을 떠올린 경과 시간" aria-valuenow="${elapsedSeconds}" aria-valuemin="0" aria-valuemax="10" aria-valuetext="10초 중 ${elapsedSeconds}초 경과"><span style="width:${(1-elapsed/RECALL_LIMIT_MS)*100}%"></span></div><span class="timer-text numeric">${elapsedSeconds} / 10초</span></div></div><article class="flashcard ${s.back?'back':'front'}" tabindex="0" aria-label="학습 카드. 클릭하거나 Enter 또는 Space 키로 앞뒤를 전환할 수 있어요.">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`${referenceMedia(term)}<div class="definition"><p class="preserve">${e(term.definition)}</p>${exampleBlock(term.explanation,'업무 관련 예시')}${exampleBlock(term.example,'상황 예시')}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div>`:``}</article><div class="rating-dock"><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div><div class="card-footer">${button('학습 종료','exit','text-button')}</div></section>`);
- main.querySelector('.study-position')?.insertAdjacentHTML('afterbegin',`<button class="study-back" type="button" data-action="undo-rating" aria-label="직전 카드 평가 되돌리기"${s.history.length?'':' disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6 4 12l6 6M4 12h16"/></svg></button>`);
+ const stepNumber=main.querySelector('.study-position>.numeric');
+ stepNumber?.insertAdjacentHTML('beforebegin',`<button class="study-step study-previous" type="button" data-action="undo-rating" aria-label="이전 카드로 돌아가기"${s.history.length?'':' disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>`);
+ stepNumber?.insertAdjacentHTML('afterend',`<button class="study-step study-next" type="button" data-action="redo-rating" aria-label="다음 카드로 다시 이동하기"${s.future.length?'':' disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>`);
  if(s.back){
   const relations=relationBlock(term.synonyms,'유의어')+relationBlock(term.antonyms,'반의어'),references=main.querySelector('.references'),definition=main.querySelector('.definition');
   if(relations)(references||definition).insertAdjacentHTML(references?'beforebegin':'beforeend',relations);
@@ -170,7 +172,7 @@ async function evaluate(value,fromX=0){
  if(busy||flipping||!session||session.done)return;
  busy=true;
  const active=session,term=active.queue[active.index],card=main.querySelector('.flashcard');
- active.history.push({index:active.index,id:term.id,previous:state.ratings[term.id]});
+ active.future=[];active.history.push({index:active.index,id:term.id,previous:state.ratings[term.id],value});
  state=rate(state,term.id,value);active.ratings[term.id]=value;persist();
  let advanced=false;
  const advance=()=>{
@@ -211,11 +213,19 @@ async function evaluate(value,fromX=0){
 function undoRating(){
  if(busy||flipping||!session||session.done)return;
  const active=session,entry=active.history.pop();if(!entry)return;
+ active.future.push(entry);
  const ratings={...state.ratings};
  if(entry.previous===undefined)delete ratings[entry.id];else ratings[entry.id]=entry.previous;
  state={...state,ratings};delete active.ratings[entry.id];
  active.index=entry.index;active.back=false;active.timerIndex=null;
  persist();study();
+}
+function redoRating(){
+ if(busy||flipping||!session||session.done)return;
+ const active=session,entry=active.future.pop();if(!entry)return;
+ state=rate(state,entry.id,entry.value);active.ratings[entry.id]=entry.value;active.history.push(entry);
+ active.index=entry.index+1;active.back=false;active.timerIndex=null;
+ persist();if(active.index===active.queue.length)finish();else study();
 }
 function finish(){
  const s=session;s.done=true;
@@ -312,6 +322,7 @@ main.addEventListener('click',async ev=>{
    case 'start':begin();break;
    case 'review':begin('review');break;
   case 'undo-rating':undoRating();break;
+  case 'redo-rating':redoRating();break;
   case 'flip':flipCard();break;
   case 'exit':session=null;home();break;
   case 'next':{const s=session;if(s.mode==='normal')begin();else begin('review',s.remaining);break;}

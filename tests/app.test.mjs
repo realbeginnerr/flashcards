@@ -54,11 +54,12 @@ test('homepage category counts show known terms over all eligible terms',async()
   }
  }finally{ui.close();}
 });
-test('study back button restores the previous card and its saved rating',async()=>{
+test('study step controls undo and redo the previous card rating',async()=>{
  let previous=core.rate(core.emptyState(),terms[0].id,'unknown');
  const ui=await setup({cloudState:previous});try{
   ui.click('start');
   assert.equal(ui.doc.querySelector('[data-action="undo-rating"]').disabled,true);
+  assert.equal(ui.doc.querySelector('[data-action="redo-rating"]').disabled,true);
   ui.click('known');await wait(5);
   assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
   assert.equal(ui.cloudState().ratings[terms[0].id],'known');
@@ -68,8 +69,14 @@ test('study back button restores the previous card and its saved rating',async()
   assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
   assert.ok(ui.doc.querySelector('.flashcard.front'));
   assert.equal(ui.doc.querySelector('[data-action="undo-rating"]').disabled,true);
+  assert.equal(ui.doc.querySelector('[data-action="redo-rating"]').disabled,false);
+  ui.click('redo-rating');await wait(5);
+  assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
+  assert.equal(ui.cloudState().ratings[terms[0].id],'known');
+  ui.click('undo-rating');await wait(5);
   ui.click('unknown');await wait(5);
   assert.equal(ui.doc.querySelector('h1').textContent,terms[1].term);
+  assert.equal(ui.doc.querySelector('[data-action="redo-rating"]').disabled,true);
  }finally{ui.close();}
 });
 test('study start shows highest mention-frequency cards first',async()=>{
@@ -93,10 +100,13 @@ test('study position stays left while the elapsed-time bar stays right and revea
   const toolbar=ui.doc.querySelector('.study-toolbar');
   assert.equal(toolbar.children[0].className,'study-position');
   assert.equal(toolbar.children[1].className,'recall-clock');
-  assert.equal(toolbar.querySelector('.study-position').children[0].className,'study-back');
-  assert.equal(toolbar.querySelector('.study-position').children[1].className,'session-name');
-  assert.match(toolbar.querySelector('.study-position').children[2].className,/numeric/);
-  assert.equal(toolbar.querySelector('.study-back').disabled,true);
+  const position=toolbar.querySelector('.study-position');
+  assert.equal(position.children[0].className,'session-name');
+  assert.match(position.children[1].className,/study-previous/);
+  assert.match(position.children[2].className,/numeric/);
+  assert.match(position.children[3].className,/study-next/);
+  assert.equal(position.querySelector('.study-previous').disabled,true);
+  assert.equal(position.querySelector('.study-next').disabled,true);
   assert.match(toolbar.querySelector('.recall-clock').children[0].className,/recall-timer/);
   assert.match(toolbar.querySelector('.recall-clock').children[1].className,/timer-text/);
   const timer=ui.doc.querySelector('.recall-timer');
