@@ -146,3 +146,11 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 @media(max-width:760px){.home-sections{gap:64px}.study-field-section .panel-heading{margin-bottom:20px}.bento-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.bento-grid .category-group-1,.bento-grid .category-group-4,.bento-grid .category-group-5{grid-column:span 2}.bento-grid .category-group-2,.bento-grid .category-group-3{grid-column:span 1}.bento-grid .category-row{min-height:96px;padding:16px 14px}.bento-grid .category-child{min-height:64px}.home-sections .home-intro{padding:0}.home-sections .home-intro h1{margin-bottom:16px}.home-sections .store-links{margin-left:auto;margin-right:auto}}
 @media(max-width:420px){.bento-grid{grid-template-columns:1fr}.bento-grid .category-group-1,.bento-grid .category-group-2,.bento-grid .category-group-3,.bento-grid .category-group-4,.bento-grid .category-group-5{grid-column:span 1}.bento-grid .category-row{min-height:82px}}
 @media(max-width:760px){.study-field-section .start-actions{width:100%;flex-direction:column}.study-field-section .start-actions>.btn{width:100%}}
+
+/* Highlight the centered introduction as its own brand-color section. */
+.home-sections .home-intro{max-width:1040px;padding:clamp(48px,7vw,72px) clamp(24px,6vw,72px);background:var(--green);color:#fff}
+.home-sections .home-intro h1,.home-sections .home-intro h1 span,.home-sections .intro-copy{color:#fff}
+.home-sections .store-links a{border-color:#fff;color:#fff}
+.home-sections .store-links a:hover{background:rgba(255,255,255,.12)}
+.home-sections .pickle-prompt-trigger{color:#fff}
+@media(max-width:760px){.home-sections .home-intro{padding:44px 20px}}
