@@ -1,6 +1,6 @@
 # 붕억빵 구현·검증 상태
 
-기록일: 2026-11-16
+기록일: 2026-11-21
 
 ## 목차
 
@@ -14,9 +14,9 @@
 
 ## 현재 결과
 
-- 사이트: https://boongeok-study-cards.hijmjo.chatgpt.site
-- 검토용 배포 성공. 현재 접근 범위는 소유자 본인만이며, 누구나 접근하는 공개 배포는 아니다.
-- 배포 소스 커밋: `585ff8be6bddb6fc48478ccebf9e0358f8ebedc3`.
+- 사이트: https://realbeginnerr.github.io/flashcards/
+- GitHub Pages 공개 배포를 사용한다. 실제 배포 성공 여부는 GitHub Actions 실행 결과와 배포 URL의 응답을 함께 확인한다.
+- 이 문서는 구현·검증 상태 기록이며, 현재 제품 요구사항은 [PRD](prd.md), 실제 동작은 소스와 Firebase 규칙을 기준으로 한다.
 - 실제 앱 소스는 프로젝트 루트의 `src`, `public`, `scripts`, `tests`에 있다. 기존 `docs`, `data`는 보존한다.
 
 <a id="features"></a>
@@ -47,7 +47,7 @@
 | Google 로그인 설정 | 활성화·웹 클라이언트 설정 및 허용 도메인 확인 |
 | Firebase SDK 제공 | 앱·인증·Firestore 파일 3개 모두 HTTP 200 |
 | 최신 빌드·로컬 HTTP | 239개 데이터 빌드, localhost HTTP 200 |
-| 배포 | Sites 성공 응답 확인 |
+| 배포 | GitHub Pages Actions 빌드·배포 성공 확인 |
 | 실제 모바일 화면·Google 로그인 팝업 | 사용자 환경 확인 필요 |
 
 DOM 이벤트 검증과 권한 에뮬레이터 테스트는 실제 휴대폰의 글자·스크롤·터치·로그인 팝업 검증을 대신하지 않는다. 브라우저 제어 환경 제한으로 실제 화면을 시각 검수했다고 주장하지 않는다.
@@ -80,4 +80,4 @@ npm run dev
 - 원본 CSV와 검토 JSON은 `data`에 보존하며 공개 앱 배포에는 포함하지 않았다. 학습용 정리 데이터는 `public/terms.json`이다.
 - Firebase 웹 앱 공개 설정만 소스에 포함하며 서비스 계정 비공개 키·OAuth 토큰은 저장하지 않는다.
 - Analytics 추적은 연결하지 않았다. Google Cloud 액세스 토큰은 초기 설정 시 stdin과 메모리로만 전달했다.
-- 사이트를 공개하려면 검토용 접근 범위를 별도로 변경해야 한다. Firebase의 공개 읽기 규칙과 Sites의 방문자 접근 제한은 서로 다른 계층이다.
+- Firebase의 공개 읽기 규칙과 GitHub Pages의 정적 사이트 공개 범위는 서로 다른 계층이다. 공개 카드 조회와 회원 기록 쓰기 권한은 `firestore.rules`를 기준으로 확인한다.
