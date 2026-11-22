@@ -2,12 +2,13 @@ import {CATEGORIES,emptyState,eligible,unknownCards,nextBatch,rate,completeBatch
 import {loadCatalog,configured,currentAdmin,login,logout,currentUser,userLogin,requestPasswordSetup,userLogout,loadStudyState,saveStudyState,requestAccountDeletion,writeTerm,deleteTerm,seedCatalog} from './cloud.js';
 const main=document.querySelector('#main'),notice=document.querySelector('#notice');
 let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve(),recallInterval=null;
+let studyGoal='career';
 const RECALL_LIMIT_MS=Number(window.__RECALL_LIMIT_MS__)||10000;
 const selected=(v,target)=>v===target?' checked':'';
 const HOME_CATEGORIES=['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅'];
 const HOME_TOP_CATEGORIES=HOME_CATEGORIES.filter(category=>category!=='피그마');
 const HOME_SUBCATEGORIES={'UX/UI 디자인':['피그마']};
-const HOME_CATEGORY_LABELS={'전체':'전체','AI 툴':'AI','개발':'개발','UX/UI 디자인':'UXUI 디자인','피그마':'피그마','마케팅':'마케팅, 브랜딩'};
+const HOME_CATEGORY_LABELS={'전체':'전체','AI 툴':'AI','개발':'개발','UX/UI 디자인':'UXUI 디자인','피그마':"'피그마'만",'마케팅':'마케팅, 브랜딩'};
 const button=(text,action,style='primary',extra='')=>`<button class="btn ${style}" type="button" data-action="${action}" ${extra}>${text}</button>`;
 const tags=t=>`<div class="term-meta"><div class="tags">${t.categories.map(c=>`<span>${e(c)}</span>`).join('')}</div><span class="mention-frequency" aria-label="회의와 프로젝트 문서 언급 빈도 ${t.importance}점"><span aria-hidden="true">${'★'.repeat(t.importance)}${'☆'.repeat(5-t.importance)}</span></span></div>`;
 const exampleBlock=(value,label)=>{if(!value)return '';const prefix=`(${label})`,text=value.startsWith(prefix)?value.slice(prefix.length).trim():value;return `<section class="definition-example"><h2>${label}</h2><p class="preserve">${e(text)}</p></section>`;};
@@ -82,18 +83,40 @@ function categoryListMarkup(){
  return HOME_TOP_CATEGORIES.map(category=>{
   const children=HOME_SUBCATEGORIES[category]||[];
   if(!children.length)return `<div class="category-group">${categoryRow(category)}</div>`;
-  return `<div class="category-group"><div class="category-row category-composite" data-action="select-category" data-category="${e(category)}"><h3 class="category-card-title">${e(HOME_CATEGORY_LABELS[category])}</h3><div class="category-suboptions">${categoryOption(category,'전체','category-suboption',false)}${children.map(child=>categoryOption(child,HOME_CATEGORY_LABELS[child],'category-suboption',false)).join('')}</div></div></div>`;
+  return `<div class="category-group"><div class="category-row category-composite" data-action="select-category" data-category="${e(category)}"><h3 class="category-card-title">${categoryOption(category,HOME_CATEGORY_LABELS[category],'category-suboption')}</h3><div class="category-suboptions">${children.map(child=>categoryOption(child,HOME_CATEGORY_LABELS[child],'category-suboption')).join('')}</div></div></div>`;
  }).join('');
+}
+function updateRecommendations(){
+ const recommended=studyGoal==='career'?[HOME_CATEGORIES[1],HOME_CATEGORIES[3]]:[HOME_CATEGORIES[1],HOME_CATEGORIES[2],HOME_CATEGORIES[5]];
+ for(const card of main.querySelectorAll('.bento-grid .category-group')){
+  card.querySelector('.recommendation-badge')?.remove();
+  const category=card.querySelector('input[name="scope"]')?.value;
+  if(recommended.includes(category))card.insertAdjacentHTML('beforeend','<span class="recommendation-badge" role="img" aria-label="추천" title="추천">&#128077;</span>');
+ }
+}
+function selectScope(category){
+ scope=category;
+ for(const input of main.querySelectorAll('input[name="scope"]'))input.checked=input.value===scope;
+ const total=eligible(terms,scope),done=new Set(state.completed[scope]||[]),remaining=total.filter(t=>!done.has(t.id)).length;
+ const start=main.querySelector('[data-action="start"]');
+ if(start){
+  start.innerHTML=total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요';
+  start.disabled=!total.length;
+ }
 }
 function home(){
  session=null;dirty=false;editing=null;
  const total=eligible(terms,scope),done=new Set(state.completed[scope]||[]),remaining=total.filter(t=>!done.has(t.id)).length;
  const unknown=unknownCards(terms,state).length;
- render(`<div class="home-sections"><section class="study-field-section" aria-labelledby="start-title"><div class="start-panel"><div class="panel-heading"><p class="eyebrow">무엇을 공부할까요?</p><h2 id="start-title">오늘의 학습 분야</h2></div><fieldset class="category-list bento-grid"><legend class="sr-only">학습 분야 선택</legend>${categoryListMarkup()}</fieldset><div class="start-actions">${button(total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요','start','primary',!total.length?'disabled':'')}${button(`<span class="review-copy">틀린 용어 복습 <span class="count">${unknown}</span></span>${arrow}`,'review','secondary')}</div></div></section><section class="home-intro" aria-labelledby="home-intro-title"><h1 id="home-intro-title" tabindex="-1">AI시대 뒤처지긴 싫고 시간은 없고,<br><span>하루 용어 딱 10개씩만.</span></h1><p class="intro-copy">내 AI 비서 "피클"을 연결해 두면<br>매일 저녁 8시, 용어 퀴즈 전화가 와요. 물론 ChatGPT에게 단어 질문해달라고 해도 돼요. 단, ChatGPT는 정해진 시간에 내게 전화를 해주지는 못해요.</p><div class="store-links" aria-label="피클 앱 다운로드"><a href="https://play.google.com/store/apps/details?id=com.pickle.client" target="_blank" rel="noopener noreferrer"><img src="./google-play.svg" alt="">Google Play에서 받기 <span aria-hidden="true">↗</span></a><a href="https://apps.apple.com/kr/app/id6795790129" target="_blank" rel="noopener noreferrer"><img src="./app-store.svg" alt="">App Store에서 받기 <span aria-hidden="true">↗</span></a></div></section></div>`,{wide:true});
+ const studySection=`<section class="study-field-section" aria-labelledby="start-title"><div class="start-panel"><div class="panel-heading"><h2 id="start-title">오늘의 학습 분야</h2><p class="eyebrow">어떤 분야의 용어를 공부할까요?</p></div><fieldset class="category-list bento-grid"><legend class="sr-only">학습 분야 선택</legend>${categoryListMarkup()}</fieldset><div class="start-actions">${button(total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요','start','primary',!total.length?'disabled':'')}${button(`<span class="review-copy">틀린 용어 복습 <span class="count">${unknown}</span></span>${arrow}`,'review','secondary')}</div></div></section>`;
+ const goalCards=`<legend class="sr-only">${e('무엇을 하고 싶으세요?')}</legend>${[['career','취업/이직 (UXUI 디자인 분야)'],['build','내 웹/앱 만들고 알리기']].map(([value,label])=>`<div class="category-group"><div class="category-row"><label class="category-option"><input type="radio" name="study-goal" value="${value}"${selected(studyGoal,value)}><span class="radio-mark" aria-hidden="true"></span><span class="category-name">${e(label)}</span></label></div></div>`).join('')}`;
+ const firstStudySection=studySection.replaceAll("start-title","start-title-copy").replaceAll('name="scope"','name="scope-copy"').replace('어떤 분야의 용어를 공부할까요?','하나만 골라주세요. 나중에 바꿀 수 있어요.').replace('오늘의 학습 분야','무엇을 하고 싶으세요?').replace(/<fieldset class="category-list bento-grid">[\s\S]*?<\/fieldset>/,`<fieldset class="category-list goal-grid">${goalCards}</fieldset>`).replace(/<div class="start-actions">[\s\S]*?<\/div>/,'');
+ render(`<div class="home-sections">${firstStudySection}${studySection}<section class="home-intro" aria-labelledby="home-intro-title" hidden><h1 id="home-intro-title" tabindex="-1">AI시대 뒤처지긴 싫고 시간은 없고,<br><span>하루 용어 딱 10개씩만.</span></h1><p class="intro-copy">내 AI 비서 "피클"을 연결해 두면<br>매일 저녁 8시, 용어 퀴즈 전화가 와요. 물론 ChatGPT에게 단어 질문해달라고 해도 돼요. 단, ChatGPT는 정해진 시간에 내게 전화를 해주지는 못해요.</p><div class="store-links" aria-label="피클 앱 다운로드"><a href="https://play.google.com/store/apps/details?id=com.pickle.client" target="_blank" rel="noopener noreferrer"><img src="./google-play.svg" alt="">Google Play에서 받기 <span aria-hidden="true">↗</span></a><a href="https://apps.apple.com/kr/app/id6795790129" target="_blank" rel="noopener noreferrer"><img src="./app-store.svg" alt="">App Store에서 받기 <span aria-hidden="true">↗</span></a></div></section></div>`,{wide:true});
  main.querySelector('.intro-copy').innerHTML='10분이면 충분해요.<br>저녁 먹고 릴스 켜기 전에, 딱 한 번만 해보세요.';
  const storeLinks=main.querySelector('.store-links'),downloadLinks=storeLinks.querySelectorAll('a');
  storeLinks.setAttribute('aria-label','ChatGPT 앱 다운로드');downloadLinks[0].href='https://play.google.com/store/apps/details?id=com.openai.chatgpt';downloadLinks[1].href='https://apps.apple.com/app/openai-chatgpt/id6448311069';
  main.querySelector('.home-intro').insertAdjacentHTML('beforeend',picklePrompt());
+ updateRecommendations();
 }
 function begin(mode='normal',queue){
  if(mode==='normal'){
@@ -305,7 +328,7 @@ async function refresh(){
   if(location.hash.startsWith('#/admin'))await admin();else if(location.hash.startsWith('#/login'))await userAccount();else home();
  }catch(err){render(`<section class="empty-state"><h1 tabindex="-1">용어를 불러오지 못했어요.</h1><p>연결 상태를 확인하고 다시 시도해주세요.</p>${button('다시 시도','retry')}</section>`);}
 }
-main.addEventListener('change',ev=>{if(ev.target.name==='scope'){scope=ev.target.value;home();}if(ev.target.closest('#term-form'))dirty=true;});
+main.addEventListener('change',ev=>{if(ev.target.name==='study-goal'){studyGoal=ev.target.value;updateRecommendations();}if(ev.target.name==='scope'||ev.target.name==='scope-copy'){selectScope(ev.target.value);}if(ev.target.closest('#term-form'))dirty=true;});
 main.addEventListener('input',ev=>{if(ev.target.id==='term-search'){search=ev.target.value;filterList();}if(ev.target.closest('#term-form'))dirty=true;});
 main.addEventListener('submit',async ev=>{
  if(ev.target.id==='term-form'){ev.preventDefault();saveForm(ev.target);return;}
@@ -318,6 +341,11 @@ main.addEventListener('submit',async ev=>{
  }
 });
 main.addEventListener('click',async ev=>{
+ const selectionCard=ev.target.closest('.study-field-section .category-group');
+ if(selectionCard&&!ev.target.closest('.category-suboptions,label,input')){
+  selectionCard.querySelector('input[type="radio"]')?.click();
+  return;
+ }
  if(ev.target.matches('.pickle-prompt-dialog')){ev.target.close();return;}
  const target=ev.target.closest('[data-action]');
  if(!target){
@@ -327,7 +355,7 @@ main.addEventListener('click',async ev=>{
   return;
  }
  if(target.disabled)return;const action=target.dataset.action;
- if(action==='select-category'&&ev.target.closest('.category-suboption'))return;
+ if(action==='select-category'&&ev.target.closest('.category-suboptions'))return;
   if(['known','unknown'].includes(action))return evaluate(action);
  if(busy&&action!=='exit')return;
  switch(action){
@@ -335,7 +363,7 @@ main.addEventListener('click',async ev=>{
    case 'show-pickle-prompt':main.querySelector('.pickle-prompt-dialog')?.showModal();break;
    case 'copy-pickle-prompt':await copyPicklePrompt(target);break;
    case 'close-pickle-prompt':target.closest('dialog')?.close();break;
-   case 'select-category':scope=target.dataset.category;home();break;
+   case 'select-category':selectScope(target.dataset.category);break;
    case 'start':begin();break;
    case 'review':begin('review');break;
   case 'undo-rating':undoRating();break;

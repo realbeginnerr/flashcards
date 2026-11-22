@@ -42,7 +42,7 @@ test('homepage shows actual category counts and 10-card session with bilingual t
  assert.equal(ui.cloudState().ratings[terms[0].id],'unknown');
  }finally{ui.close();}
 });
-test('homepage category counts show progress except in compact UXUI radio choices',async()=>{
+test('homepage category counts show progress for every category including UXUI and Figma',async()=>{
  let progress=core.rate(core.emptyState(),terms[0].id,'known');
  progress=core.rate(progress,terms[1].id,'unknown');
  const ui=await setup({cloudState:progress});try{
@@ -51,8 +51,7 @@ test('homepage category counts show progress except in compact UXUI radio choice
    const categoryTerms=core.eligible(terms,category);
    const known=categoryTerms.filter(term=>progress.ratings[term.id]==='known').length;
    const count=option.querySelector('.category-count');
-   if(['UX/UI 디자인','피그마'].includes(category))assert.equal(count,null);
-   else assert.equal(count.textContent,`${known}/${categoryTerms.length}개`);
+   assert.equal(count.textContent,`${known}/${categoryTerms.length}개`);
   }
  }finally{ui.close();}
 });
@@ -229,8 +228,11 @@ test('homepage fills three-card and two-card Bento rows and keeps UXUI choices i
  const ui=await setup();try{
   const sections=ui.doc.querySelector('.home-sections');
   assert.equal(sections.children[0].className,'study-field-section');
-  assert.equal(sections.children[1].className,'home-intro');
-  assert.match(ui.doc.querySelector('.category-list').className,/bento-grid/);
+  assert.equal(sections.children[1].className,'study-field-section');
+  assert.equal(sections.children[2].className,'home-intro');
+  assert.equal(sections.children[0].getAttribute('aria-labelledby'),'start-title-copy');
+  assert.equal(sections.children[1].getAttribute('aria-labelledby'),'start-title');
+  assert.match(ui.doc.querySelector('.study-field-section:nth-child(2) .category-list').className,/bento-grid/);
   assert.match(styles,/\.bento-grid\{display:grid;grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
   assert.match(styles,/\.bento-grid \.category-group:nth-of-type\(-n\+3\)\{grid-column:span 2\}/);
   assert.match(styles,/\.bento-grid \.category-group:nth-of-type\(n\+4\)\{grid-column:span 3\}/);
@@ -250,13 +252,13 @@ test('homepage fills three-card and two-card Bento rows and keeps UXUI choices i
   assert.match(styles,/\.study-field-section \.start-actions\{[^}]*flex-direction:row;justify-content:center/);
   assert.match(styles,/\.study-field-section \.start-actions>\.btn\{width:200px/);
   assert.match(styles,/@media\(max-width:760px\)\{\.study-field-section \.start-actions\{[^}]*flex-direction:column\}\.study-field-section \.start-actions>\.btn\{width:100%\}\}/);
-  const options=[...ui.doc.querySelectorAll('.category-option')];
-  assert.equal(ui.doc.querySelectorAll('.category-group').length,5);
-  assert.equal(ui.doc.querySelector('.category-composite .category-card-title').textContent,'UXUI 디자인');
-  const uxuiChoices=[...ui.doc.querySelectorAll('.category-composite .category-suboption')];
-  assert.deepEqual(uxuiChoices.map(option=>option.querySelector('.category-name').textContent),['전체','피그마']);
-  assert.ok(uxuiChoices.every(option=>option.querySelector('.category-count')===null));
-  assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','전체','피그마','마케팅, 브랜딩']);
+  const options=[...ui.doc.querySelector('.study-field-section:nth-child(2)').querySelectorAll('.category-option')];
+  assert.equal(ui.doc.querySelector('.study-field-section:nth-child(2)').querySelectorAll('.category-group').length,5);
+  assert.equal(ui.doc.querySelector('.category-composite .category-card-title .category-name').textContent,'UXUI 디자인');
+  const uxuiChoices=[...ui.doc.querySelector('.study-field-section:nth-child(2)').querySelectorAll('.category-composite .category-suboption')];
+  assert.deepEqual(uxuiChoices.map(option=>option.querySelector('.category-name').textContent),['UXUI 디자인',"'피그마'만"]);
+  assert.ok(uxuiChoices.every(option=>option.querySelector('.category-count')));
+  assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','UXUI 디자인',"'피그마'만",'마케팅, 브랜딩']);
   assert.equal(ui.doc.querySelector('.category-index'),null);
   for(const option of options){
    assert.equal(option.children[1].className,'radio-mark');
@@ -561,5 +563,74 @@ test('review button has left-aligned copy, count, and a trailing arrow',async()=
   assert.match(review.textContent,/틀린 용어 복습/);
   assert.ok(review.querySelector('.count'));
   assert.equal(review.querySelector('[aria-hidden="true"]').textContent,'↗');
+ }finally{ui.close();}
+});
+
+
+test('goal section has two selectable cards and preserves selection on field changes',async()=>{
+ const ui=await setup();try{
+  assert.equal(ui.doc.querySelectorAll('.goal-grid .category-group').length,2);
+  const goal=ui.doc.querySelector('input[name="study-goal"][value="build"]');
+  goal.click();
+  const category=ui.doc.querySelector('input[name="scope"][value="'+core.CATEGORIES[0]+'"]');
+  category.click();
+  assert.equal(ui.doc.querySelector('input[name="study-goal"]:checked').value,'build');
+  assert.equal(ui.doc.querySelectorAll('.study-field-section:nth-child(2) .category-group').length,5);
+ }finally{ui.close();}
+});
+
+
+test('goal selection immediately updates recommended AI and career or marketing cards',async()=>{
+ const ui=await setup();try{
+  const recommended=()=>[...ui.doc.querySelectorAll('.bento-grid .recommendation-badge')].map(badge=>badge.closest('.category-group').querySelector('input').value);
+  assert.deepEqual(recommended(),[core.CATEGORIES[3],core.CATEGORIES[0]]);
+  ui.doc.querySelector('input[name="study-goal"][value="build"]').click();
+  assert.deepEqual(recommended(),[core.CATEGORIES[3],core.CATEGORIES[2],core.CATEGORIES[4]]);
+  assert.equal(ui.doc.querySelectorAll('.goal-grid .recommendation-badge').length,0);
+  ui.doc.querySelector('input[name="scope"][value="'+core.CATEGORIES[2]+'"]' ).click();
+  assert.deepEqual(recommended(),[core.CATEGORIES[3],core.CATEGORIES[2],core.CATEGORIES[4]]);
+  ui.doc.querySelector('input[name="study-goal"][value="career"]').click();
+  assert.deepEqual(recommended(),[core.CATEGORIES[3],core.CATEGORIES[0]]);
+ }finally{ui.close();}
+});
+
+
+test('whole goal and category cards select while subcategory row gaps preserve selection',async()=>{
+ const ui=await setup();try{
+  ui.doc.querySelectorAll('.goal-grid .category-group')[1].click();
+  assert.equal(ui.doc.querySelector('input[name="study-goal"]:checked').value,'build');
+  const fieldCard=category=>ui.doc.querySelector('input[name="scope"][value="'+category+'"]')?.closest('.category-group');
+  fieldCard(core.CATEGORIES[4]).click();
+  assert.equal(ui.doc.querySelector('input[name="scope"]:checked').value,core.CATEGORIES[4]);
+  fieldCard(core.CATEGORIES[0]).querySelector('.category-card-title').click();
+  assert.equal(ui.doc.querySelector('input[name="scope"]:checked').value,core.CATEGORIES[0]);
+  ui.doc.querySelector('input[name="scope"][value="'+core.CATEGORIES[1]+'"]').closest('label').click();
+  assert.equal(ui.doc.querySelector('input[name="scope"]:checked').value,core.CATEGORIES[1]);
+  ui.doc.querySelector('.category-suboptions').click();
+  assert.equal(ui.doc.querySelector('input[name="scope"]:checked').value,core.CATEGORIES[1]);
+  ui.doc.querySelector('.category-composite').click();
+  assert.equal(ui.doc.querySelector('input[name="scope"]:checked').value,core.CATEGORIES[0]);
+ }finally{ui.close();}
+});
+
+
+test('selecting category cards preserves the screen and never scrolls to the top',async()=>{
+ const ui=await setup();try{
+  await wait(40);
+  const scrollCalls=[];
+  ui.win.scrollTo=options=>scrollCalls.push(options);
+  const sections=ui.doc.querySelector('.home-sections');
+  const marketing=ui.doc.querySelector('input[name="scope"][value="'+core.CATEGORIES[4]+'"]');
+  marketing.closest('.category-group').click();
+  assert.equal(marketing.checked,true);
+  ui.doc.querySelector('.category-card-title').click();
+  const figma=ui.doc.querySelector('input[name="scope"][value="'+core.CATEGORIES[1]+'"]');
+  figma.closest('label').click();
+  assert.equal(figma.checked,true);
+  await wait(40);
+  assert.equal(ui.doc.querySelector('.home-sections'),sections);
+  assert.deepEqual(scrollCalls,[]);
+  ui.click('start');
+  assert.ok(ui.doc.querySelector('.session-name').textContent.startsWith(core.CATEGORIES[1]));
  }finally{ui.close();}
 });
