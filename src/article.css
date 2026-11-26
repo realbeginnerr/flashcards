@@ -21,3 +21,4 @@
 .article-body h1+h2{margin-top:0;padding-top:0;border-top:0}
 @media(max-width:560px){.article-body{--chapter-divider-space:114px}}
 .blog-toc{top:124px;max-height:calc(100vh - 156px)}@media(max-width:1000px){.blog-toc{position:static;max-height:none}}@media(max-width:560px){}
+.article-hero{margin:0 0 40px}.article-hero img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px}

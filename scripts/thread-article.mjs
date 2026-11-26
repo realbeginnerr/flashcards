@@ -75,7 +75,8 @@ export async function renderThreadPage(){
 - ChatGPT 계정 만들기, 데스크톱용 앱 설치하기 (다른 AI여도 괜찮아요. 다만, 데스크톱용 앱이 있거나 VS Code에 설치할 수 있는 AI여야 해요.)
 
 `;
- const {body,headings}=renderArticle(pageMarkdown.replace(/^(## Step 1\.[^\r\n]*\r?\n)/m,'$1\n'+prerequisites));
+ const rendered=renderArticle(pageMarkdown.replace(/^(## Step 1\.[^\r\n]*\r?\n)/m,'$1\n'+prerequisites)),headings=rendered.headings;
+ const body=rendered.body.replace('</h1>','</h1><figure class="article-hero"><img src="./guides/threads-approval-inbox.png" width="1280" height="462" alt="Notion AI 승인 대기함 화면. 주제 선택, 게시 승인, 성과 보고 요청이 AI 권장안·상태와 함께 목록으로 정리되어 있다."></figure>');
  const index=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
  const header=index.match(/<header class="site-header">[\s\S]*?<\/header>/)[0].replace(/href="#\//g,'href="./#/');
  const footer=index.match(/<footer class="site-footer">[\s\S]*?<\/footer>/)[0];
