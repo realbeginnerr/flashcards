@@ -45,10 +45,10 @@
 .header-search-panel[hidden]{display:none}
 #home-search-status{color:var(--muted);font-size:14px;line-height:1.7}
 #home-search-results{display:grid;gap:12px;margin-top:12px}
-.home-search-result{border:1px solid var(--line);background:var(--white);border-radius:16px;padding:20px 24px}
-.home-search-result summary{cursor:pointer;overflow-wrap:anywhere;font-weight:600}
-.search-english{margin-left:12px;font-weight:400;color:var(--muted)}
-.search-definition{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.home-search-result{display:flex;align-items:baseline;gap:12px;min-height:44px;border:1px solid var(--line);background:var(--white);border-radius:16px;padding:16px 24px;transition:border-color .15s}.home-search-result:hover{border-color:var(--green)}.search-term{overflow-wrap:anywhere;font-weight:600}.search-open{margin-left:auto;color:var(--green)}
+
+.search-english{font-weight:400;color:var(--muted);overflow-wrap:anywhere}
+
 .site-header,.header-actions{flex-wrap:nowrap;white-space:nowrap}
 .header-search-toggle{display:none}
 .header-search-toggle svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8}

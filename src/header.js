@@ -1,6 +1,5 @@
 export function initHeader({document,window,getTerms,loadTerms,e,bilingual}){
  if(document.querySelector('.header-search'))return;
- const exampleBlock=(value,label)=>{if(!value)return '';const prefix=`(${label})`,text=value.startsWith(prefix)?value.slice(prefix.length).trim():value;return `<section class="definition-example"><h2>${e(label)}</h2><p class="preserve">${e(text)}</p></section>`;};
 async function updateHomeSearch(){
  const input=document.querySelector('#home-term-search'),results=document.querySelector('#home-search-results'),status=document.querySelector('#home-search-status');
  if(!input||!results)return;
@@ -17,7 +16,7 @@ async function updateHomeSearch(){
  }
  const found=terms.filter(term=>[term.term,term.englishTerm,term.synonyms].some(value=>String(value||'').normalize('NFKC').toLocaleLowerCase().includes(query)));
  status.textContent=found.length?`${found.length}개의 용어를 찾았어요.`:'검색 결과가 없어요. 다른 단어로 검색해보세요.';
- results.innerHTML=found.map(term=>`<details class="home-search-result"><summary><span>${e(term.term)}</span>${bilingual(term)?`<span class="search-english">${e(bilingual(term))}</span>`:''}</summary><div class="search-definition"><p class="preserve">${e(term.definition)}</p>${exampleBlock(term.explanation,'업무 관련 예시')}${exampleBlock(term.example,'상황 예시')}</div></details>`).join('');
+ results.innerHTML=found.map(term=>`<a class="home-search-result" href="./#/term/${encodeURIComponent(term.id)}" target="_blank" rel="noopener noreferrer" aria-label="${e(term.term)} 뜻 보기 (새 창)"><span class="search-term">${e(term.term)}</span>${bilingual(term)?`<span class="search-english">${e(bilingual(term))}</span>`:''}<span class="search-open" aria-hidden="true">↗</span></a>`).join('');
 }
 const headerSearch=document.querySelector('.header-admin');
 headerSearch.insertAdjacentHTML('beforebegin',`<div class="header-search"><button class="header-search-toggle" type="button" aria-label="용어 검색 열기" aria-controls="home-search-form" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button><form id="home-search-form" role="search" aria-label="용어 검색"><label class="sr-only" for="home-term-search">저장된 용어 검색</label><input id="home-term-search" type="search" placeholder="용어 검색" autocomplete="off" aria-controls="header-search-panel" aria-expanded="false"><button type="submit" aria-label="용어 검색"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button></form><section id="header-search-panel" class="header-search-panel" aria-label="용어 검색 결과" hidden><p id="home-search-status" role="status"></p><div id="home-search-results"></div></section></div>`);
