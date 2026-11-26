@@ -1,8 +1,22 @@
+import {initHeader} from './header.js';
 import {CATEGORIES,emptyState,eligible,unknownCards,nextBatch,rate,completeBatch,resetScope,bilingual,escapeHtml as e} from './core.js';
 import {loadCatalog,configured,currentAdmin,login,logout,currentUser,userLogin,requestPasswordSetup,userLogout,loadStudyState,saveStudyState,requestAccountDeletion,writeTerm,deleteTerm,seedCatalog} from './cloud.js';
 const main=document.querySelector('#main'),notice=document.querySelector('#notice');
 let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve(),recallInterval=null;
-let studyGoal='career';
+let catalogReady=false,studyReady=false,catalogPromise=null,studyPromise=null;
+function ensureCatalog(){
+ if(catalogReady)return Promise.resolve();
+ return catalogPromise??=(async()=>{terms=await loadCatalog();catalogReady=true;})().finally(()=>{catalogPromise=null;});
+}
+function ensureStudyData(){
+ if(studyReady)return Promise.resolve();
+ return studyPromise??=(async()=>{
+  await ensureCatalog();
+  const user=configured?await currentUser():null;activeUser=user;setHeaderUser(user);
+  if(user){const saved=await loadStudyState();if(saved)state=saved;else await saveStudyState(state);}else state=emptyState();
+  studyReady=true;
+ })().finally(()=>{studyPromise=null;});
+}
 const RECALL_LIMIT_MS=Number(window.__RECALL_LIMIT_MS__)||10000;
 const selected=(v,target)=>v===target?' checked':'';
 const HOME_CATEGORIES=['전체','AI 툴','개발','UX/UI 디자인','피그마','마케팅'];
@@ -86,14 +100,6 @@ function categoryListMarkup(){
   return `<div class="category-group"><div class="category-row category-composite" data-action="select-category" data-category="${e(category)}"><h3 class="category-card-title">${categoryOption(category,HOME_CATEGORY_LABELS[category],'category-suboption')}</h3><div class="category-suboptions">${children.map(child=>categoryOption(child,HOME_CATEGORY_LABELS[child],'category-suboption')).join('')}</div></div></div>`;
  }).join('');
 }
-function updateRecommendations(){
- const recommended=studyGoal==='career'?[HOME_CATEGORIES[1],HOME_CATEGORIES[3]]:[HOME_CATEGORIES[1],HOME_CATEGORIES[2],HOME_CATEGORIES[5]];
- for(const card of main.querySelectorAll('.bento-grid .category-group')){
-  card.querySelector('.recommendation-badge')?.remove();
-  const category=card.querySelector('input[name="scope"]')?.value;
-  if(recommended.includes(category))card.insertAdjacentHTML('beforeend','<span class="recommendation-badge" role="img" aria-label="추천" title="추천">&#128077;</span>');
- }
-}
 function selectScope(category){
  scope=category;
  for(const input of main.querySelectorAll('input[name="scope"]'))input.checked=input.value===scope;
@@ -108,15 +114,28 @@ function home(){
  session=null;dirty=false;editing=null;
  const total=eligible(terms,scope),done=new Set(state.completed[scope]||[]),remaining=total.filter(t=>!done.has(t.id)).length;
  const unknown=unknownCards(terms,state).length;
- const studySection=`<section class="study-field-section" aria-labelledby="start-title"><div class="start-panel"><div class="panel-heading"><h2 id="start-title">오늘의 학습 분야</h2><p class="eyebrow">어떤 분야의 용어를 공부할까요?</p></div><fieldset class="category-list bento-grid"><legend class="sr-only">학습 분야 선택</legend>${categoryListMarkup()}</fieldset><div class="start-actions">${button(total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요','start','primary',!total.length?'disabled':'')}${button(`<span class="review-copy">틀린 용어 복습 <span class="count">${unknown}</span></span>${arrow}`,'review','secondary')}</div></div></section>`;
- const goalCards=`<legend class="sr-only">${e('무엇을 하고 싶으세요?')}</legend>${[['career','취업/이직 (UXUI 디자인 분야)'],['build','내 웹/앱 만들고 알리기']].map(([value,label])=>`<div class="category-group"><div class="category-row"><label class="category-option"><input type="radio" name="study-goal" value="${value}"${selected(studyGoal,value)}><span class="radio-mark" aria-hidden="true"></span><span class="category-name">${e(label)}</span></label></div></div>`).join('')}`;
- const firstStudySection=studySection.replaceAll("start-title","start-title-copy").replaceAll('name="scope"','name="scope-copy"').replace('어떤 분야의 용어를 공부할까요?','하나만 골라주세요. 나중에 바꿀 수 있어요.').replace('오늘의 학습 분야','무엇을 하고 싶으세요?').replace(/<fieldset class="category-list bento-grid">[\s\S]*?<\/fieldset>/,`<fieldset class="category-list goal-grid">${goalCards}</fieldset>`).replace(/<div class="start-actions">[\s\S]*?<\/div>/,'');
+ const studySection=`<section class="study-field-section" aria-labelledby="start-title" hidden><div class="start-panel"><div class="panel-heading"><h2 id="start-title">오늘의 학습 분야</h2><p class="eyebrow">어떤 분야의 용어를 공부할까요?</p></div><fieldset class="category-list bento-grid"><legend class="sr-only">학습 분야 선택</legend>${categoryListMarkup()}</fieldset><div class="start-actions">${button(total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요','start','primary',!total.length?'disabled':'')}${button(`<span class="review-copy">틀린 용어 복습 <span class="count">${unknown}</span></span>${arrow}`,'review','secondary')}</div></div></section>`;
+ const aiTasks=[
+  ['Threads 마케터 만들기','M4 5h16v11H9l-5 4V5M8 9h8M8 12h5'],
+  ['Instagram 마케터 만들기','M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0M17 7h.01'],
+  ['Youtube 마케터 만들기','M3 5h18v14H3zM10 9l5 3-5 3z'],
+  ['블로그 마케터 만들기','M4 4h16v16H4zM8 8h8M8 12h8M8 16h5'],
+  ['링크드인 마케터 만들기','M4 4h16v16H4zM8 10v7M8 7h.01M12 17v-7M12 13a3 3 0 0 1 6 0v4'],
+  ['이메일 마케터 만들기','M3 5h18v14H3zM3 6l9 7 9-7'],
+  ['상세 페이지 디자이너 만들기','M5 3h14v18H5zM8 7h8v5H8zM8 16h8'],
+  ['웹사이트 디자이너 만들기','M3 4h18v16H3zM3 9h18M7 6.5h.01M10 6.5h.01M9 13l-2 2 2 2M15 13l2 2-2 2'],
+  ['브랜드 디자이너 만들기','M12 3l3 6 6 3-6 3-3 6-3-6-6-3 6-3z'],
+  ['PDF 디자이너 만들기','M5 3h9l5 5v13H5zM14 3v5h5M8 12h8M8 16h8'],
+  ['PM 만들기','M8 5H4v16h16V5h-4M8 3h8v4H8zM8 12h8M8 16h5']
+ ];
+ const requestCard=`<li><a class="ai-task-card ai-task-link ai-request-card" href="https://www.instagram.com/uxui_needesignlab/" target="_blank" rel="noopener noreferrer" aria-label="다른 직원이 필요하신가요? (인스타그램 새 창)"><span class="ai-task-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5M8 9h8M8 12h5"/></svg></span><h3>다른 직원이 필요하신가요?</h3><span class="ai-request-description">필요한 직원을 인스타그램 DM으로 알려주세요.</span><span class="ai-task-open">DM으로 요청하기 <span aria-hidden="true">↗</span></span></a></li>`;
+ const firstStudySection=`<section class="study-field-section" aria-labelledby="ai-guide-title"><div class="start-panel"><div class="panel-heading"><h2 id="ai-guide-title">AI 직원 만드는 방법</h2></div><ul class="ai-task-grid">${aiTasks.map(([title,icon],index)=>`<li>${index===0?'<a class="ai-task-card ai-task-link" href="./thread-marketer.html" target="_blank" rel="noopener noreferrer" aria-label="Threads 마케터 만들기 (새 창)">':'<div class="ai-task-card is-disabled" aria-disabled="true">'}<span class="ai-task-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${icon}"/></svg></span><h3>${e(title)}</h3>${index===0?'<span class="ai-task-open">읽어보기 <span aria-hidden="true">↗</span></span></a>':'</div>'}</li>`).join('')}${requestCard}</ul></div></section>`;
  render(`<div class="home-sections">${firstStudySection}${studySection}<section class="home-intro" aria-labelledby="home-intro-title" hidden><h1 id="home-intro-title" tabindex="-1">AI시대 뒤처지긴 싫고 시간은 없고,<br><span>하루 용어 딱 10개씩만.</span></h1><p class="intro-copy">내 AI 비서 "피클"을 연결해 두면<br>매일 저녁 8시, 용어 퀴즈 전화가 와요. 물론 ChatGPT에게 단어 질문해달라고 해도 돼요. 단, ChatGPT는 정해진 시간에 내게 전화를 해주지는 못해요.</p><div class="store-links" aria-label="피클 앱 다운로드"><a href="https://play.google.com/store/apps/details?id=com.pickle.client" target="_blank" rel="noopener noreferrer"><img src="./google-play.svg" alt="">Google Play에서 받기 <span aria-hidden="true">↗</span></a><a href="https://apps.apple.com/kr/app/id6795790129" target="_blank" rel="noopener noreferrer"><img src="./app-store.svg" alt="">App Store에서 받기 <span aria-hidden="true">↗</span></a></div></section></div>`,{wide:true});
+ main.querySelector('[aria-labelledby="ai-guide-title"]').insertAdjacentHTML('afterend',`<section class="home-study-entry" aria-label="용어 학습"><a class="btn primary" href="#/study" target="_blank" rel="noopener noreferrer" aria-label="관련 용어 학습하기 (새 탭)">관련 용어 학습하기 ${arrow}</a></section>`);
  main.querySelector('.intro-copy').innerHTML='10분이면 충분해요.<br>저녁 먹고 릴스 켜기 전에, 딱 한 번만 해보세요.';
  const storeLinks=main.querySelector('.store-links'),downloadLinks=storeLinks.querySelectorAll('a');
  storeLinks.setAttribute('aria-label','ChatGPT 앱 다운로드');downloadLinks[0].href='https://play.google.com/store/apps/details?id=com.openai.chatgpt';downloadLinks[1].href='https://apps.apple.com/app/openai-chatgpt/id6448311069';
  main.querySelector('.home-intro').insertAdjacentHTML('beforeend',picklePrompt());
- updateRecommendations();
 }
 function begin(mode='normal',queue){
  if(mode==='normal'){
@@ -280,6 +299,7 @@ async function userAccount(){
  render('<p class="loading">로그인 상태를 확인하는 중이에요.</p>');
  try{
   const user=await currentUser();activeUser=user;setHeaderUser(user);
+  if(user&&!studyReady)await ensureStudyData();
   if(user){
    const known=Object.values(state.ratings).filter(value=>value==='known').length,unknown=Object.values(state.ratings).filter(value=>value==='unknown').length;
    render(`<section class="admin-login account-page"><p class="eyebrow">마이페이지</p><h1 tabindex="-1">내 계정</h1><p>${e(user.email||'')}</p><div class="account-stats"><div><span>학습한 용어</span><strong>${known+unknown}</strong></div><div><span>알아요</span><strong>${known}</strong></div><div><span>몰라요</span><strong>${unknown}</strong></div></div>${button('비밀번호 변경 메일 받기','password-change','secondary')}${button('로그아웃','user-logout','secondary')}${button('계정 삭제 요청','show-delete-request','danger')}${button('처음으로','home','text-button')}</section>`);return;
@@ -291,7 +311,7 @@ async function admin(){
  session=null;
  if(!configured){render(`<section class="admin-login"><p class="eyebrow">운영자 전용</p><h1 tabindex="-1">관리자 로그인</h1><p>학습 공간을 차근차근 준비하고 있어요.</p><div class="info-box">Google 관리자 로그인 연결을 준비 중이에요.<br>일반 학습과 복습은 지금 이용할 수 있어요.</div>${button('학습으로 돌아가기','home','secondary')}</section>`);return;}
  render('<p class="loading">로그인 상태를 확인하는 중이에요.</p>');
- try{const user=await currentAdmin();if(user)return adminList();render(`<section class="admin-login"><p class="eyebrow">운영자 전용</p><h1 tabindex="-1">관리자 로그인</h1><p>등록된 관리자 계정으로<br>용어를 관리할 수 있어요.</p><div id="admin-error" role="alert"></div>${button('Google로 로그인','login')}${button('학습으로 돌아가기','home','text-button')}</section>`);}catch(err){render(`<section class="empty-state"><h1 tabindex="-1">로그인을 준비하지 못했어요.</h1><p>${e(err.message)}</p>${button('다시 시도','admin')}</section>`);}
+ try{const user=await currentAdmin();if(user){await ensureCatalog();return adminList();}render(`<section class="admin-login"><p class="eyebrow">운영자 전용</p><h1 tabindex="-1">관리자 로그인</h1><p>등록된 관리자 계정으로<br>용어를 관리할 수 있어요.</p><div id="admin-error" role="alert"></div>${button('Google로 로그인','login')}${button('학습으로 돌아가기','home','text-button')}</section>`);}catch(err){render(`<section class="empty-state"><h1 tabindex="-1">로그인을 준비하지 못했어요.</h1><p>${e(err.message)}</p>${button('다시 시도','admin')}</section>`);}
 }
 function adminList(){
  editing=null;dirty=false;
@@ -320,15 +340,20 @@ async function saveForm(form){
  busy=true;const submit=form.querySelector('[type=submit]');submit.disabled=true;submit.textContent='저장 중…';form.querySelector('#form-error').textContent='';
  try{await writeTerm(value,editing);dirty=false;terms=await loadCatalog();adminList();message('용어를 저장했어요.');}catch(err){form.querySelector('#form-error').textContent=err.message;}finally{busy=false;if(submit.isConnected){submit.disabled=false;submit.textContent='저장';}}
 }
-async function refresh(){
- render('<p class="loading">용어를 불러오는 중이에요.</p>');
- try{
-  terms=await loadCatalog();const user=await currentUser();activeUser=user;setHeaderUser(user);
-  if(user){const saved=await loadStudyState();if(saved)state=saved;else await saveStudyState(state);}else state=emptyState();
-  if(location.hash.startsWith('#/admin'))await admin();else if(location.hash.startsWith('#/login'))await userAccount();else home();
- }catch(err){render(`<section class="empty-state"><h1 tabindex="-1">용어를 불러오지 못했어요.</h1><p>연결 상태를 확인하고 다시 시도해주세요.</p>${button('다시 시도','retry')}</section>`);}
+async function startStudyOnDemand(target,mode='normal'){
+ if(!studyReady){
+  target.disabled=true;target.setAttribute('aria-busy','true');
+  const status=target.closest('.study-entry')?.querySelector('.study-load-status');
+  if(status){status.hidden=false;status.textContent='용어를 불러오는 중이에요.';}
+  try{await ensureStudyData();}
+  catch(error){if(target.isConnected){if(status)status.textContent=error.message;else banner(error.message);}return;}
+  finally{target.disabled=false;target.removeAttribute('aria-busy');}
+  if(!target.isConnected)return;
+  if(status)status.hidden=true;
+ }
+ begin(mode);
 }
-main.addEventListener('change',ev=>{if(ev.target.name==='study-goal'){studyGoal=ev.target.value;updateRecommendations();}if(ev.target.name==='scope'||ev.target.name==='scope-copy'){selectScope(ev.target.value);}if(ev.target.closest('#term-form'))dirty=true;});
+main.addEventListener('change',ev=>{if(ev.target.name==='scope'||ev.target.name==='scope-copy'){selectScope(ev.target.value);}if(ev.target.closest('#term-form'))dirty=true;});
 main.addEventListener('input',ev=>{if(ev.target.id==='term-search'){search=ev.target.value;filterList();}if(ev.target.closest('#term-form'))dirty=true;});
 main.addEventListener('submit',async ev=>{
  if(ev.target.id==='term-form'){ev.preventDefault();saveForm(ev.target);return;}
@@ -364,8 +389,8 @@ main.addEventListener('click',async ev=>{
    case 'copy-pickle-prompt':await copyPicklePrompt(target);break;
    case 'close-pickle-prompt':target.closest('dialog')?.close();break;
    case 'select-category':selectScope(target.dataset.category);break;
-   case 'start':begin();break;
-   case 'review':begin('review');break;
+   case 'start':await startStudyOnDemand(target);break;
+   case 'review':await startStudyOnDemand(target,'review');break;
   case 'undo-rating':undoRating();break;
   case 'redo-rating':redoRating();break;
   case 'flip':flipCard();break;
@@ -373,7 +398,7 @@ main.addEventListener('click',async ev=>{
   case 'next':{const s=session;if(s.mode==='normal')begin();else begin('review',s.remaining);break;}
   case 'restart':state=resetScope(state,scope);persist();begin();break;
   case 'review-session':begin('review',session.queue.filter(t=>session.ratings[t.id]==='unknown'));break;
-  case 'retry':await refresh();break;
+  case 'retry':route();break;
   case 'admin':await admin();break;
    case 'user-account':await userAccount();break;
    case 'user-logout':await userLogout();activeUser=null;state=emptyState();setHeaderUser(null);await userAccount();break;
@@ -406,7 +431,27 @@ main.addEventListener('click',async ev=>{
  }
 });
 window.addEventListener('beforeunload',ev=>{if(dirty){ev.preventDefault();ev.returnValue='';}});
-function route(){if(location.hash.startsWith('#/admin'))return admin();if(location.hash.startsWith('#/login'))return userAccount();return home();}
+function openStudy(){
+ render(`<section class="study-entry"><h1 tabindex="-1">관련 용어 학습</h1><p class="study-load-status" role="status"></p>${button('다시 시도','start','primary')}</section>`);
+ return startStudyOnDemand(main.querySelector('.study-entry button'));
+}
+async function openTerm(){
+ const requestedHash=location.hash;
+ session=null;
+ render('<section class="study-entry"><h1 tabindex="-1">용어를 불러오고 있어요</h1></section>');
+ try{
+  const id=decodeURIComponent(requestedHash.slice('#/term/'.length));
+  await ensureCatalog();
+  if(location.hash!==requestedHash)return;
+  const term=terms.find(item=>item.id===id);
+  if(!term)return empty('이 용어를 찾을 수 없어요.','삭제되었거나 링크가 변경되었을 수 있어요.');
+  const english=bilingual(term);
+  render(`<section class="study-shell term-detail"><article class="flashcard back">${tags(term)}<div class="term-heading"><p class="eyebrow">용어 뜻</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${referenceMedia(term)}<div class="definition"><p class="preserve">${e(term.definition)}</p>${exampleBlock(term.explanation,'업무 관련 예시')}${exampleBlock(term.example,'상황 예시')}${relationBlock(term.synonyms,'비슷한 말')}${relationBlock(term.antonyms,'반대말')}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)}</a>`).join('')}</details>`:''}</div></article><div class="card-footer"><a href="#/study">다른 용어 학습하기</a></div></section>`);
+ }catch{
+  if(location.hash===requestedHash)render(`<section class="empty-state"><h1 tabindex="-1">용어를 불러오지 못했어요.</h1><p>잠시 후 다시 시도해주세요.</p>${button('다시 시도','retry')}</section>`);
+ }
+}
+function route(){if(location.hash.startsWith('#/term/'))return openTerm();if(location.hash==='#/study')return openStudy();if(location.hash.startsWith('#/admin'))return admin();if(location.hash.startsWith('#/login'))return userAccount();return home();}
 window.addEventListener('hashchange',()=>{if(dirty&&!canLeave()){history.replaceState(null,'','#/admin');return;}dirty=false;route();});
 document.addEventListener('click',ev=>{
  const link=ev.target.closest('a[href]');
@@ -428,4 +473,5 @@ window.addEventListener('popstate',()=>{
  dirty=false;route();
 });
 
-refresh();
+initHeader({document,window,getTerms:()=>catalogReady?terms:null,loadTerms:async()=>{await ensureCatalog();return terms;},e,bilingual,exampleBlock});
+route();

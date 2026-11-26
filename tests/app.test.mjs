@@ -3,16 +3,22 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {Window} from 'happy-dom';
 import * as core from '../src/core.js';
+import {initHeader} from '../src/header.js';
 const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
 const source=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
 const styles=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
 const terms=core.normalizeCatalog(JSON.parse(await readFile(new URL('../public/terms.json',import.meta.url),'utf8')));
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function setup({cards=terms,state,hash='',motion=false,mobile=false,authenticated=true,cloudState,prioritized=false,recallLimit}={}){
+async function setup({cards=terms,state,hash='',motion=false,mobile=false,authenticated=true,cloudState,prioritized=false,manualClock=false,preloadStudy=true,catalogLoader}={}){
  const win=new Window({url:'http://localhost:5174/'+hash,settings:{disableCSSFileLoading:true,disableJavaScriptFileLoading:true}});
  const animations=[];
  win.matchMedia=query=>({matches:query.includes('max-width')?mobile:!motion});
- if(recallLimit)win.__RECALL_LIMIT_MS__=recallLimit;
+ const clock={now:1000,intervals:new Map(),nextId:0};
+ if(manualClock){
+  win.__testClock=clock;
+  win.setInterval=callback=>{const id=++clock.nextId;clock.intervals.set(id,callback);return id;};
+  win.clearInterval=id=>clock.intervals.delete(id);
+ }
  if(motion)win.HTMLElement.prototype.animate=function(keyframes,options){let resolve;const finished=new Promise(r=>resolve=r);animations.push({keyframes,options,finish:resolve});return {finished};};
  win.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
  if(state!==undefined)win.localStorage.setItem(core.STORE_KEY,typeof state==='string'?state:JSON.stringify(state));
@@ -22,13 +28,95 @@ async function setup({cards=terms,state,hash='',motion=false,mobile=false,authen
  const testNextBatch=prioritized
   ? (items,currentState,currentScope)=>core.nextBatch(items,currentState,currentScope,()=>0.999999)
   : (items,currentState,currentScope='전체')=>{const done=new Set(currentState.completed[currentScope]||[]);return core.eligible(items,currentScope).filter(card=>!done.has(card.id)).slice(0,10);};
- win.__deps={...core,nextBatch:testNextBatch,e:core.escapeHtml,configured:true,loadCatalog:async()=>cards,currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},currentUser:async()=>user,userLogin:async email=>{user={uid:'approved-user',email,emailVerified:true};},requestPasswordSetup:async email=>{passwordSetupEmail=email;},userLogout:async()=>{user=null;},loadStudyState:async()=>savedCloudState,saveStudyState:async value=>{savedCloudState=value;},requestAccountDeletion:async()=>{deletionRequested=true;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
+ const calls={catalog:0,user:0,state:0};
+ win.__deps={...core,initHeader,nextBatch:testNextBatch,e:core.escapeHtml,configured:true,loadCatalog:async()=>{calls.catalog++;return catalogLoader?catalogLoader():cards;},currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},currentUser:async()=>{calls.user++;return user;},userLogin:async email=>{user={uid:'approved-user',email,emailVerified:true};},requestPasswordSetup:async email=>{passwordSetupEmail=email;},userLogout:async()=>{user=null;},loadStudyState:async()=>{calls.state++;return savedCloudState;},saveStudyState:async value=>{savedCloudState=value;},requestAccountDeletion:async()=>{deletionRequested=true;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
  const body=source.replace(/^import .*;\r?\n/gm,'');
  const bindings=Object.keys(win.__deps).join(',');
- win.eval(`{ const {${bindings}} = window.__deps; ${body} }`);
+ win.eval(`{ ${manualClock?'const Date=class extends window.Date {static now(){return window.__testClock.now;}};':''} const {${bindings}} = window.__deps; ${body} window.__prepareStudy=async()=>{await ensureStudyData();if(!location.hash||location.hash==='#/')home();}; }`);
  await wait(35);
- return {win,doc:win.document,animations,click(action){const el=win.document.querySelector(`[data-action="${action}"]`) || (action==='flip'?win.document.querySelector('.flashcard'):null);assert.ok(el,`button ${action}`);el.click();},saved:()=>saved,passwordSetupEmail:()=>passwordSetupEmail,cloudState:()=>savedCloudState,deletionRequested:()=>deletionRequested,clipboardText:()=>clipboardText,close(){win.dispatchEvent(new win.Event('pagehide'));win.close();}};
+ if(preloadStudy)await win.__prepareStudy();
+ return {win,doc:win.document,animations,calls,advanceTime(ms){assert.ok(manualClock);clock.now+=ms;for(const callback of [...clock.intervals.values()])callback();},timerCount:()=>clock.intervals.size,click(action){const el=win.document.querySelector(`[data-action="${action}"]`) || (action==='flip'?win.document.querySelector('.flashcard'):null);assert.ok(el,`button ${action}`);el.click();},saved:()=>saved,passwordSetupEmail:()=>passwordSetupEmail,cloudState:()=>savedCloudState,deletionRequested:()=>deletionRequested,clipboardText:()=>clipboardText,close(){win.dispatchEvent(new win.Event('pagehide'));win.close();}};
 }
+test('direct term link opens its definition without authentication or a study timer',async()=>{
+ const term=terms[0],ui=await setup({hash:'#/term/'+encodeURIComponent(term.id),preloadStudy:false,authenticated:false});
+ try{
+  assert.equal(ui.doc.querySelector('.term-detail h1').textContent,term.term);
+  assert.equal(ui.doc.querySelector('.term-detail .definition>.preserve').textContent,term.definition);
+  assert.equal(ui.doc.querySelector('.recall-timer'),null);
+  assert.equal(ui.calls.user,0);
+  assert.equal(ui.doc.querySelector('.site-footer').hidden,false);
+ }finally{ui.close();}
+});
+test('deleted term links show a useful empty state',async()=>{
+ const ui=await setup({hash:'#/term/missing-term',preloadStudy:false});
+ try{assert.equal(ui.doc.querySelector('h1').textContent,'이 용어를 찾을 수 없어요.');}
+ finally{ui.close();}
+});
+test('cold home never requests terminology, authentication or study records',async()=>{
+ const ui=await setup({preloadStudy:false,catalogLoader:()=>{throw new Error('Home must not fetch');}});try{
+  assert.deepEqual(ui.calls,{catalog:0,user:0,state:0});
+  assert.ok(ui.doc.querySelector('.ai-task-link'));
+  assert.equal(ui.doc.querySelector('.loading'),null);
+  assert.equal(ui.doc.querySelector('.home-study-entry a').target,'_blank');
+  ui.doc.querySelector('.brand').click();
+  assert.deepEqual(ui.calls,{catalog:0,user:0,state:0});
+ }finally{ui.close();}
+});
+
+test('new study tab loads once and restores saved progress',async()=>{
+ let resolve;
+ const pending=new Promise(done=>{resolve=done;});
+ const saved=core.rate(core.emptyState(),terms[0].id,'unknown');
+ const ui=await setup({hash:'#/study',preloadStudy:false,cloudState:saved,catalogLoader:()=>pending});try{
+  const start=ui.doc.querySelector('.study-entry button');start.click();
+  assert.equal(ui.calls.catalog,1);
+  assert.equal(start.disabled,true);
+  assert.ok(ui.doc.querySelector('.study-entry'));
+  resolve(terms);await wait(5);
+  assert.ok(ui.doc.querySelector('.flashcard'));
+  assert.equal(ui.calls.state,1);
+  ui.click('exit');
+  ui.click('start');
+  assert.ok(ui.doc.querySelector('.flashcard'));
+  assert.equal(ui.calls.catalog,1);
+ }finally{ui.close();}
+});
+
+test('a failed request in the new study tab can be retried',async()=>{
+ let fail=true;
+ const ui=await setup({hash:'#/study',preloadStudy:false,catalogLoader:()=>{if(fail)throw new Error('Offline');return terms;}});try{
+  const start=ui.doc.querySelector('.study-entry button');
+  assert.ok(ui.doc.querySelector('.study-entry'));
+  assert.equal(start.disabled,false);
+  assert.equal(ui.doc.querySelector('.study-load-status').textContent,'Offline');
+  fail=false;start.click();await wait(5);
+  assert.ok(ui.doc.querySelector('.flashcard'));
+  assert.equal(ui.calls.catalog,2);
+ }finally{ui.close();}
+});
+
+test('search lazily requests only the catalog and leaving during study loading never starts a session',async()=>{
+ let resolve;
+ const pending=new Promise(done=>{resolve=done;});
+ const ui=await setup({preloadStudy:false,catalogLoader:()=>pending});try{
+  const input=ui.doc.querySelector('#home-term-search');
+  input.focus();assert.equal(ui.calls.catalog,0);
+  input.value=terms[0].term;input.dispatchEvent(new ui.win.Event('input',{bubbles:true}));
+  assert.deepEqual(ui.calls,{catalog:1,user:0,state:0});
+  resolve(terms);await wait(5);
+  assert.ok(ui.doc.querySelector('.home-search-result'));
+  assert.equal(ui.calls.user,0);
+ }finally{ui.close();}
+ let finish;
+ const loading=new Promise(done=>{finish=done;});
+ const other=await setup({hash:'#/study',preloadStudy:false,catalogLoader:()=>loading});try{
+  other.doc.querySelector('.brand').click();
+  finish(terms);await wait(5);
+  assert.equal(other.doc.querySelector('.flashcard'),null);
+  assert.ok(other.doc.querySelector('.ai-task-link'));
+ }finally{other.close();}
+});
+
 test('homepage shows actual category counts and 10-card session with bilingual term',async()=>{
  const ui=await setup();try{
  assert.match(ui.doc.body.textContent,/239/);assert.match(ui.doc.body.textContent,/140/);
@@ -96,7 +184,7 @@ test('study toolbar describes the selected category as terminology in progress',
  }finally{ui.close();}
 });
 test('study position stays left while the elapsed-time bar stays right and reveals after ten seconds',async()=>{
- const ui=await setup({cards:[terms[0]],recallLimit:30});try{
+ const ui=await setup({cards:[terms[0]],manualClock:true});try{
   ui.click('start');
   const toolbar=ui.doc.querySelector('.study-toolbar');
   assert.equal(toolbar.children[0].className,'study-position');
@@ -115,21 +203,27 @@ test('study position stays left while the elapsed-time bar stays right and revea
   assert.equal(timer.getAttribute('aria-valuemax'),'10');
   assert.equal(ui.doc.querySelector('.timer-text').textContent,'0 / 10초');
   assert.ok(ui.doc.querySelector('.flashcard.front'));
-  await wait(150);
+  ui.advanceTime(1000);
+  assert.equal(ui.doc.querySelector('.timer-text').textContent,'1 / 10초');
+  ui.advanceTime(8999);
+  assert.ok(ui.doc.querySelector('.flashcard.front'));
+  assert.equal(ui.doc.querySelector('.timer-text').textContent,'9 / 10초');
+  ui.advanceTime(1);
   assert.ok(ui.doc.querySelector('.flashcard.back'));
   assert.equal(ui.doc.querySelector('.recall-timer').getAttribute('aria-valuenow'),'10');
   assert.equal(ui.doc.querySelector('.timer-text').textContent,'10 / 10초');
+  assert.equal(ui.timerCount(),0);
   assert.match(styles,/\.session-name\{flex:none\}/);
   assert.match(styles,/\.recall-clock\{[^}]*margin-left:auto/);
  }finally{ui.close();}
 });
 test('elapsed-time display keeps running after the card is manually flipped',async()=>{
- const ui=await setup({cards:[terms[0]],recallLimit:400});try{
-  ui.click('start');await wait(120);
+ const ui=await setup({cards:[terms[0]],manualClock:true});try{
+  ui.click('start');ui.advanceTime(2000);
   const before=Number.parseInt(ui.doc.querySelector('.timer-text').textContent,10);
   const beforeWidth=Number.parseFloat(ui.doc.querySelector('.recall-timer>span').style.width);
   ui.click('flip');assert.ok(ui.doc.querySelector('.flashcard.back'));
-  await wait(140);
+  ui.advanceTime(3000);
   const after=Number.parseInt(ui.doc.querySelector('.timer-text').textContent,10);
   const afterWidth=Number.parseFloat(ui.doc.querySelector('.recall-timer>span').style.width);
   assert.ok(after>before,`${before} -> ${after}`);
@@ -226,13 +320,13 @@ test('homepage shows the requested study copy and official ChatGPT app links',as
 });
 test('homepage fills three-card and two-card Bento rows and keeps UXUI choices inside one card',async()=>{
  const ui=await setup();try{
-  const sections=ui.doc.querySelector('.home-sections');
+  const sections={children:[...ui.doc.querySelector('.home-sections').children].filter(node=>!node.classList.contains('home-study-entry'))};
   assert.equal(sections.children[0].className,'study-field-section');
   assert.equal(sections.children[1].className,'study-field-section');
   assert.equal(sections.children[2].className,'home-intro');
-  assert.equal(sections.children[0].getAttribute('aria-labelledby'),'start-title-copy');
+  assert.equal(sections.children[0].getAttribute('aria-labelledby'),'ai-guide-title');
   assert.equal(sections.children[1].getAttribute('aria-labelledby'),'start-title');
-  assert.match(ui.doc.querySelector('.study-field-section:nth-child(2) .category-list').className,/bento-grid/);
+  assert.match(ui.doc.querySelector('.study-field-section[aria-labelledby="start-title"] .category-list').className,/bento-grid/);
   assert.match(styles,/\.bento-grid\{display:grid;grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
   assert.match(styles,/\.bento-grid \.category-group:nth-of-type\(-n\+3\)\{grid-column:span 2\}/);
   assert.match(styles,/\.bento-grid \.category-group:nth-of-type\(n\+4\)\{grid-column:span 3\}/);
@@ -252,10 +346,10 @@ test('homepage fills three-card and two-card Bento rows and keeps UXUI choices i
   assert.match(styles,/\.study-field-section \.start-actions\{[^}]*flex-direction:row;justify-content:center/);
   assert.match(styles,/\.study-field-section \.start-actions>\.btn\{width:200px/);
   assert.match(styles,/@media\(max-width:760px\)\{\.study-field-section \.start-actions\{[^}]*flex-direction:column\}\.study-field-section \.start-actions>\.btn\{width:100%\}\}/);
-  const options=[...ui.doc.querySelector('.study-field-section:nth-child(2)').querySelectorAll('.category-option')];
-  assert.equal(ui.doc.querySelector('.study-field-section:nth-child(2)').querySelectorAll('.category-group').length,5);
+  const options=[...ui.doc.querySelector('.study-field-section[aria-labelledby="start-title"]').querySelectorAll('.category-option')];
+  assert.equal(ui.doc.querySelector('.study-field-section[aria-labelledby="start-title"]').querySelectorAll('.category-group').length,5);
   assert.equal(ui.doc.querySelector('.category-composite .category-card-title .category-name').textContent,'UXUI 디자인');
-  const uxuiChoices=[...ui.doc.querySelector('.study-field-section:nth-child(2)').querySelectorAll('.category-composite .category-suboption')];
+  const uxuiChoices=[...ui.doc.querySelector('.study-field-section[aria-labelledby="start-title"]').querySelectorAll('.category-composite .category-suboption')];
   assert.deepEqual(uxuiChoices.map(option=>option.querySelector('.category-name').textContent),['UXUI 디자인',"'피그마'만"]);
   assert.ok(uxuiChoices.every(option=>option.querySelector('.category-count')));
   assert.deepEqual(options.map(option=>option.querySelector('.category-name').textContent),['전체','AI','개발','UXUI 디자인',"'피그마'만",'마케팅, 브랜딩']);
@@ -279,8 +373,8 @@ test('homepage fills three-card and two-card Bento rows and keeps UXUI choices i
 });
 test('header shows only the logo name without a side tagline',async()=>{
  const ui=await setup();try{
-  assert.equal(ui.doc.querySelector('.brand').textContent.trim(),'붕억빵');
-  assert.equal(ui.doc.querySelector('.brand-mark').getAttribute('src'),'./boongeoppang-complete.png');
+  assert.equal(ui.doc.querySelector('.brand').textContent.trim(),'JarvisT');
+  assert.equal(ui.doc.querySelector('.brand-mark').getAttribute('src'),'./jarvis.svg');
   assert.equal(ui.doc.querySelector('.brand-tag'),null);
   assert.equal(ui.doc.querySelector('.header-login').textContent,'마이페이지');
   assert.equal(ui.doc.querySelector('.header-login').getAttribute('href'),'#/login');
@@ -322,7 +416,7 @@ test('home omits browser storage note and footer links to Instagram proposals',a
   assert.ok(proposal);
   assert.equal(proposal.href,'https://www.instagram.com/t_s_recipe?vrfl=MWRzMTVmNW1iMjlqdA%3D%3D&utm_source=qr');
   assert.equal(proposal.target,'_blank');
-  assert.deepEqual([...ui.doc.querySelector('.site-footer').children].map(element=>element.textContent),['© 붕억빵','용어제안/기타제휴']);
+  assert.deepEqual([...ui.doc.querySelector('.site-footer').children].map(element=>element.textContent),['© JarvisT','용어제안/기타제휴']);
   assert.equal(ui.doc.querySelector('.site-footer a[href="#/admin"]'),null);
  }finally{ui.close();}
 });
@@ -384,7 +478,7 @@ test('admin Google login leads to list and shared editor validates categories',a
  const ui=await setup({hash:'#/admin'});try{
  assert.match(ui.doc.querySelector('h1').textContent,/관리자 로그인/);ui.click('login');await wait(35);
  assert.match(ui.doc.querySelector('h1').textContent,/용어 관리/);ui.click('add');
- const form=ui.doc.querySelector('form');form.elements.term.value='새 용어';form.elements.definition.value='새 뜻';
+ const form=ui.doc.querySelector('#term-form');form.elements.term.value='새 용어';form.elements.definition.value='새 뜻';
  form.dispatchEvent(new ui.win.Event('submit',{bubbles:true,cancelable:true}));await wait(10);
  assert.match(ui.doc.querySelector('#category-error').textContent,/하나 이상/);assert.equal(ui.saved(),null);
  form.querySelector('[name=categories]').checked=true;
@@ -567,38 +661,48 @@ test('review button has left-aligned copy, count, and a trailing arrow',async()=
 });
 
 
-test('goal section has two selectable cards and preserves selection on field changes',async()=>{
+test('secondary study link opens the dedicated route in a new tab without loading home data',async()=>{
  const ui=await setup();try{
-  assert.equal(ui.doc.querySelectorAll('.goal-grid .category-group').length,2);
-  const goal=ui.doc.querySelector('input[name="study-goal"][value="build"]');
-  goal.click();
-  const category=ui.doc.querySelector('input[name="scope"][value="'+core.CATEGORIES[0]+'"]');
-  category.click();
-  assert.equal(ui.doc.querySelector('input[name="study-goal"]:checked').value,'build');
-  assert.equal(ui.doc.querySelectorAll('.study-field-section:nth-child(2) .category-group').length,5);
+  const section=ui.doc.querySelector('.home-study-entry');
+  assert.equal(section.previousElementSibling.getAttribute('aria-labelledby'),'ai-guide-title');
+  assert.equal(section.querySelectorAll('a').length,1);
+  const start=section.querySelector('a.btn.primary');
+  assert.equal(start.getAttribute('href'),'#/study');
+  assert.equal(start.target,'_blank');
+  assert.ok(start.rel.includes('noopener'));
+  const before=ui.calls.catalog;
+  start.click();
+  assert.equal(ui.calls.catalog,before);
+  assert.ok(ui.doc.querySelector('.ai-task-grid'));
  }finally{ui.close();}
 });
 
-
-test('goal selection immediately updates recommended AI and career or marketing cards',async()=>{
+test('AI guide lists eleven guides followed by an active Instagram request card',async()=>{
  const ui=await setup();try{
-  const recommended=()=>[...ui.doc.querySelectorAll('.bento-grid .recommendation-badge')].map(badge=>badge.closest('.category-group').querySelector('input').value);
-  assert.deepEqual(recommended(),[core.CATEGORIES[3],core.CATEGORIES[0]]);
-  ui.doc.querySelector('input[name="study-goal"][value="build"]').click();
-  assert.deepEqual(recommended(),[core.CATEGORIES[3],core.CATEGORIES[2],core.CATEGORIES[4]]);
-  assert.equal(ui.doc.querySelectorAll('.goal-grid .recommendation-badge').length,0);
-  ui.doc.querySelector('input[name="scope"][value="'+core.CATEGORIES[2]+'"]' ).click();
-  assert.deepEqual(recommended(),[core.CATEGORIES[3],core.CATEGORIES[2],core.CATEGORIES[4]]);
-  ui.doc.querySelector('input[name="study-goal"][value="career"]').click();
-  assert.deepEqual(recommended(),[core.CATEGORIES[3],core.CATEGORIES[0]]);
+  const section=ui.doc.querySelector('.study-field-section');
+  const expected=['Threads 마케터 만들기','Instagram 마케터 만들기','Youtube 마케터 만들기','블로그 마케터 만들기','링크드인 마케터 만들기','이메일 마케터 만들기','상세 페이지 디자이너 만들기','웹사이트 디자이너 만들기','브랜드 디자이너 만들기','PDF 디자이너 만들기','PM 만들기','다른 직원이 필요하신가요?'];
+  assert.deepEqual([...section.querySelectorAll('.ai-task-grid li h3')].map(node=>node.textContent),expected);
+  const link=section.querySelector('.ai-task-link');
+  assert.equal(link.getAttribute('href'),'./thread-marketer.html');
+  assert.equal(link.target,'_blank');
+  assert.ok(link.rel.includes('noopener'));
+  assert.equal(section.querySelectorAll('.is-disabled[aria-disabled="true"]').length,10);
+  assert.equal(section.querySelectorAll('.ai-task-grid a').length,2);
+  const request=section.querySelector('.ai-task-grid>li:last-child a');
+  assert.equal(request.href,'https://www.instagram.com/uxui_needesignlab/');
+  assert.equal(request.target,'_blank');
+  assert.ok(request.rel.includes('noopener'));
+  assert.equal(request.getAttribute('aria-disabled'),null);
+  assert.match(request.textContent,/DM/);
+  assert.equal(section.querySelector('.is-disabled a, .is-disabled button, .is-disabled [tabindex]'),null);
+  assert.equal(section.querySelector('.roadmap-path'),null);
+  assert.equal(section.querySelector('input'),null);
+  assert.equal(section.querySelector('.eyebrow'),null);
  }finally{ui.close();}
 });
 
-
-test('whole goal and category cards select while subcategory row gaps preserve selection',async()=>{
+test('whole category cards select while subcategory row gaps preserve selection',async()=>{
  const ui=await setup();try{
-  ui.doc.querySelectorAll('.goal-grid .category-group')[1].click();
-  assert.equal(ui.doc.querySelector('input[name="study-goal"]:checked').value,'build');
   const fieldCard=category=>ui.doc.querySelector('input[name="scope"][value="'+category+'"]')?.closest('.category-group');
   fieldCard(core.CATEGORIES[4]).click();
   assert.equal(ui.doc.querySelector('input[name="scope"]:checked').value,core.CATEGORIES[4]);
@@ -632,5 +736,49 @@ test('selecting category cards preserves the screen and never scrolls to the top
   assert.deepEqual(scrollCalls,[]);
   ui.click('start');
   assert.ok(ui.doc.querySelector('.session-name').textContent.startsWith(core.CATEGORIES[1]));
+ }finally{ui.close();}
+});
+
+test('mobile search icon opens the field and closes with Escape or outside click without eager loading',async()=>{
+ const ui=await setup({mobile:true,preloadStudy:false});try{
+  const toggle=ui.doc.querySelector('.header-search-toggle'),wrapper=toggle.parentElement;
+  assert.equal(toggle.getAttribute('aria-label'),'용어 검색 열기');
+  assert.equal(toggle.getAttribute('aria-expanded'),'false');
+  toggle.click();
+  assert.ok(wrapper.classList.contains('is-open'));
+  assert.equal(toggle.getAttribute('aria-expanded'),'true');
+  assert.equal(ui.doc.activeElement.id,'home-term-search');
+  assert.equal(ui.calls.catalog,0);
+  ui.doc.activeElement.dispatchEvent(new ui.win.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  assert.equal(wrapper.classList.contains('is-open'),false);
+  assert.equal(ui.doc.activeElement,toggle);
+  toggle.click();ui.doc.querySelector('#main').click();
+  assert.equal(wrapper.classList.contains('is-open'),false);
+ }finally{ui.close();}
+});
+
+test('home search filters saved terms, reveals definitions and clears results safely',async()=>{
+ const ui=await setup({authenticated:false});try{
+  assert.equal(ui.doc.querySelector('.home-sections').firstElementChild.getAttribute('aria-labelledby'),'ai-guide-title');
+  assert.equal(ui.doc.querySelector('.header-admin').previousElementSibling.className,'header-search');
+  assert.equal(ui.doc.querySelector('#home-search-title'),null);
+  const input=ui.doc.querySelector('#home-term-search');
+  input.value=terms[0].term;input.dispatchEvent(new ui.win.Event('input',{bubbles:true}));
+  assert.equal(ui.doc.querySelector('#header-search-panel').hidden,false);
+  input.dispatchEvent(new ui.win.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  assert.equal(ui.doc.querySelector('#header-search-panel').hidden,true);
+  ui.doc.querySelector('#home-search-form').dispatchEvent(new ui.win.Event('submit',{bubbles:true,cancelable:true}));
+  assert.equal(ui.doc.querySelector('#header-search-panel').hidden,false);
+  assert.ok(ui.doc.querySelector('#home-search-results').textContent.includes(terms[0].definition));
+  assert.ok(ui.doc.querySelector('.home-search-result summary').textContent.includes(terms[0].term));
+  const english=terms.find(term=>term.englishTerm);
+  input.value=english.englishTerm.toUpperCase();input.dispatchEvent(new ui.win.Event('input',{bubbles:true}));
+  assert.ok(ui.doc.querySelector('#home-search-results').textContent.includes(english.term));
+  input.value='<img src=x onerror=alert(1)>';input.dispatchEvent(new ui.win.Event('input',{bubbles:true}));
+  assert.equal(ui.doc.querySelectorAll('.home-search-result').length,0);
+  assert.ok(ui.doc.querySelector('#home-search-status').textContent);
+  input.value='  ';input.dispatchEvent(new ui.win.Event('input',{bubbles:true}));
+  assert.equal(ui.doc.querySelector('#home-search-status').textContent,'');
+  assert.equal(ui.doc.querySelector('#header-search-panel').hidden,true);
  }finally{ui.close();}
 });
