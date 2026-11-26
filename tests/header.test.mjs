@@ -89,10 +89,17 @@ test('navigation stays identical and on one row at mobile widths',()=>{
     assert.equal(computed('.site-header').flexWrap,'nowrap');
     assert.equal(computed('.header-actions').flexWrap,'nowrap');
     assert.equal(computed('.header-search-toggle').display,'grid');
-    assert.equal(computed('#home-search-form').display,'none');
+    assert.equal(computed('.header-search-sheet').visibility,'hidden');
+    assert.equal(computed('.header-search-sheet').position,'fixed');
     ui.doc.querySelector('.header-search-toggle').click();
+    assert.equal(computed('.header-search-sheet').visibility,'visible');
+    assert.equal(computed('.header-search-back').display,'grid');
     assert.equal(computed('#home-search-form').display,'flex');
-    assert.equal(computed('#home-search-form').position,'fixed');
+    assert.ok(ui.doc.documentElement.classList.contains('header-search-active'));
+    ui.doc.querySelector('.header-search-back').click();
+    assert.equal(computed('.header-search-sheet').visibility,'hidden');
+    assert.equal(ui.doc.querySelector('.header-search-toggle').getAttribute('aria-expanded'),'false');
+    assert.ok(!ui.doc.documentElement.classList.contains('header-search-active'));
    }
   }finally{a.win.close();b.win.close();}
  }
