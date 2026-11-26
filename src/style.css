@@ -159,7 +159,7 @@ input:not([type=radio]):not([type=checkbox]),textarea{font-size:var(--type-body-
 .ai-task-open{display:flex;justify-content:space-between;gap:16px;width:100%;margin-top:auto;color:var(--green);font-size:14px;font-weight:600}
 .ai-task-card.is-disabled{opacity:.5;cursor:default;pointer-events:none;user-select:none}
 .ai-request-card{background:var(--soft);border-color:#c3d2c6}
-.ai-request-card .ai-task-icon{background:var(--white)}
+.ai-request-card .ai-task-icon{background:var(--white)}.ai-task-logo{background:var(--white);border:1px solid var(--line)}.ai-task-logo img{display:block;width:28px;height:28px}.ai-request-illustration{display:block;width:80px;height:80px;margin:-10px 0 4px -6px;filter:drop-shadow(0 8px 14px #255a4622)}
 .ai-request-description,.ai-task-description{font-size:14px;line-height:20px;color:#8a948e}
 .home-study-entry{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 .study-load-status{font-size:14px;color:var(--muted);text-align:center}
