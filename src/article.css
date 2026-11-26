@@ -24,3 +24,4 @@
 .blog-toc{top:124px;max-height:calc(100vh - 156px)}@media(max-width:1000px){.blog-toc{position:static;max-height:none}}@media(max-width:560px){}
 .article-hero{margin:0 0 36px}.article-hero img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px}
 .article-final{margin:24px 0 0}.article-final img{display:block;width:100%;max-width:780px;height:auto;margin:0 auto;border:1px solid var(--line)}
+.article-body a.article-term-link,.article-body a.article-term-link:visited{color:#1a5fd0;text-decoration:underline;text-decoration-color:currentColor;text-underline-offset:3px}.article-body a.article-term-link:hover{color:#0f4aa8}
