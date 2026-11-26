@@ -80,7 +80,16 @@ export async function renderGuidePage({body:pageBody,headings:pageHeadings,title
 <body><a class="skip" href="#article">본문 바로가기</a>${header}<div class="reading-bar" aria-hidden="true"><a class="reading-bar-link" href="#article" tabindex="-1"><span class="reading-title">${escape(title)}</span><span class="reading-separator" hidden>›</span><span class="reading-step"></span></a></div>
 <div class="blog-layout"><aside class="blog-toc"><nav aria-label="글 목차"><span class="toc-label">이 글의 순서</span><ol>${toc}</ol></nav></aside><main id="article"><nav class="article-kicker" aria-label="브레드크럼"><a href="./">홈</a><span aria-hidden="true">/</span><span aria-current="page">${escape(title)}</span></nav><article class="article-body">${body}</article><footer class="article-footer"><a href="./">← 다른 AI 직원 살펴보기</a><a href="#article">맨 위로 ↑</a></footer></main></div></body></html>`;
  const terms=JSON.parse(await readFile(new URL('../public/terms.json',import.meta.url),'utf8'));
- return linkArticleTerms(html.replace('</body>',`${footer}</body>`),terms);
+ const linked=linkArticleTerms(html.replace('</body>',`${footer}</body>`),terms);
+ return addPageStudyLinks(linked);
+}
+// "이 페이지에 나오는 용어 학습하기": opens a flashcard session (new tab) with only the terms linked in this page, in reading order.
+// Added after term linking so the button text itself is never linked.
+export function addPageStudyLinks(html){
+ const ids=[...new Set([...html.matchAll(/<a class="article-term-link" href="\.\/#\/term\/([^"]+)"/g)].map(match=>decodeURIComponent(match[1])))];
+ if(!ids.length)return html;
+ const link=place=>`<p class="page-study page-study-${place}"><a class="page-study-link" href="./#/study/terms/${ids.map(encodeURIComponent).join(',')}" target="_blank" rel="noopener noreferrer">이 페이지에 나오는 용어 학습하기<span class="page-study-count">${ids.length}개</span><span aria-hidden="true">↗</span></a></p>`;
+ return html.replace('</h1>','</h1>'+link('start')).replace(/<\/article>/,link('end')+'</article>');
 }
 export async function renderThreadPage(){
  const markdown=await readFile(new URL('../'+articleSource,import.meta.url),'utf8');

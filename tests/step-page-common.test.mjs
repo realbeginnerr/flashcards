@@ -27,7 +27,7 @@ test('every step page ends with the same shared 기타 section, after the final 
    const last=h2s.at(-1);
    assert.equal(last.textContent,'기타');
    for(const element of article.querySelectorAll('figure'))assert.ok(element.compareDocumentPosition(last)&4,'기타 comes after every image');
-   assert.equal(article.lastElementChild.textContent.replace(/\s+/g,' ').trim(),commonText.replace(/\s+/g,' '));
+   assert.equal(article.lastElementChild.previousElementSibling.textContent.replace(/\s+/g,' ').trim(),commonText.replace(/\s+/g,' '));
    assert.deepEqual([...article.querySelectorAll('h3')].filter(h=>h.compareDocumentPosition(last)&2).map(h=>h.textContent),commonSubheadings);
    const toc=[...doc.querySelectorAll('.blog-toc a')];
    assert.equal(toc.at(-1).textContent,'기타');
@@ -41,4 +41,26 @@ test('every step page title gets the decorative robot icon without changing the 
  const css=await readFile(new URL('../src/article.css',import.meta.url),'utf8');
  assert.match(css,/\.article-body h1::before\{[^}]*content:"🤖" \/ ""/);
  for(const html of [await renderThreadPage(),await renderDetailDesignerPage()])assert.doesNotMatch(html.match(/<h1[^>]*>[^<]*/)[0],/🤖/);
+});
+
+test('every step page has the page-term study link at the start and end of the article, listing only its linked terms',async()=>{
+ for(const html of [await renderThreadPage(),await renderDetailDesignerPage()]){
+  const win=new Window();
+  try{
+   win.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
+   const article=win.document.querySelector('.article-body');
+   const links=[...article.querySelectorAll('.page-study-link')];
+   assert.equal(links.length,2);
+   assert.equal(article.querySelector('h1').nextElementSibling.querySelector('.page-study-link'),links[0]);
+   assert.equal(article.lastElementChild.querySelector('.page-study-link'),links[1]);
+   const ids=[...new Set([...article.querySelectorAll('a.article-term-link')].map(a=>decodeURIComponent(a.getAttribute('href').split('/').pop())))];
+   assert.ok(ids.length>0);
+   for(const link of links){
+    assert.match(link.textContent,/^이 페이지에 나오는 용어 학습하기/);
+    assert.equal(link.target,'_blank');
+    assert.equal(link.getAttribute('href'),'./#/study/terms/'+ids.map(encodeURIComponent).join(','));
+    assert.equal(link.querySelector('.article-term-link'),null);
+   }
+  }finally{win.close();}
+ }
 });

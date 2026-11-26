@@ -39,3 +39,10 @@ html{scroll-padding-top:140px}
 @media(max-width:360px){.reading-bar-link{padding-inline:12px}}
 @media(prefers-reduced-motion:reduce){.reading-bar,.reading-bar.is-visible{transition:none}}
 .blog-toc{top:148px;max-height:calc(100vh - 180px)}@media(max-width:1000px){.blog-toc{position:static;max-height:none}}
+/* "이 페이지에 나오는 용어 학습하기": same look as the home study button, at the start and end of every step page. */
+.article-body .page-study{margin:0 0 36px}.article-body .page-study-end{margin:64px 0 0}
+.article-body a.page-study-link{display:inline-flex;align-items:center;gap:12px;min-height:50px;padding:12px 20px;background:var(--green);color:#fff;font-size:15px;line-height:1.5;font-weight:600;text-decoration:none;transition:background .14s}
+.article-body a.page-study-link:hover{background:#1b4535;color:#fff}
+.article-body a.page-study-link:focus-visible{outline:3px solid #9fc2ad;outline-offset:3px}
+.page-study-count{font-size:13px;font-weight:500;opacity:.8}
+@media (max-width:760px){.article-body a.page-study-link{display:flex;justify-content:space-between;width:100%}}

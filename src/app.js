@@ -148,6 +148,7 @@ function begin(mode='normal',queue){
  }else{
   const cards=queue||unknownCards(terms,state);
   if(!cards.length)return empty('모르는 용어가 아직 없어요.','학습 중 몰라요로 표시한 카드를 여기서 다시 만날 수 있어요.');
+  if(mode==='page'&&!cards.length)return empty('이 페이지의 용어를 찾지 못했어요.','용어 목록이 바뀌었을 수 있어요. 홈에서 다른 용어를 학습해보세요.');
   session={mode,scope:'전체',remaining:cards.slice(10),queue:cards.slice(0,10),index:0,back:false,ratings:{},history:[],future:[],done:false};
  }
  study();
@@ -157,7 +158,7 @@ function study(){
  const s=session;if(!s)return home();const term=s.queue[s.index];if(!term)return finish();
  if(s.timerIndex!==s.index){s.timerIndex=s.index;s.timerStartedAt=Date.now();}
  const elapsed=Math.min(RECALL_LIMIT_MS,Date.now()-s.timerStartedAt),elapsedSeconds=Math.min(10,Math.floor(elapsed/RECALL_LIMIT_MS*10));
- const english=bilingual(term);const name=s.mode==='normal'?s.scope+' 용어 학습 중':'모르는 용어 복습';
+ const english=bilingual(term);const name=s.mode==='normal'?s.scope+' 용어 학습 중':s.mode==='page'?'이 페이지 용어 학습 중':'모르는 용어 복습';
  render(`<section class="study-shell ${s.back?'is-back':''}"><div class="study-toolbar"><div class="study-position"><span class="session-name">${e(name)}</span><span class="numeric">${s.index+1} <span class="muted">/ ${s.queue.length}</span></span></div><div class="recall-clock"><div class="progress recall-timer" role="progressbar" aria-label="뜻을 떠올린 경과 시간" aria-valuenow="${elapsedSeconds}" aria-valuemin="0" aria-valuemax="10" aria-valuetext="10초 중 ${elapsedSeconds}초 경과"><span style="width:${(1-elapsed/RECALL_LIMIT_MS)*100}%"></span></div><span class="timer-text numeric">${elapsedSeconds} / 10초</span></div></div><article class="flashcard ${s.back?'back':'front'}" tabindex="0" aria-label="학습 카드. 클릭하거나 Enter 또는 Space 키로 앞뒤를 전환할 수 있어요.">${tags(term)}<div class="term-heading"><p class="eyebrow">${s.back?'뜻을 확인해보세요':'뜻을 먼저 떠올려보세요'}</p><h1 tabindex="-1">${e(term.term)}</h1>${english?`<p class="english">${e(english)}</p>`:''}</div>${s.back?`${referenceMedia(term)}<div class="definition"><p class="preserve">${e(term.definition)}</p>${exampleBlock(term.explanation,'업무 관련 예시')}${exampleBlock(term.example,'상황 예시')}${term.sources.length?`<details class="references"><summary>참고 자료</summary>${term.sources.map(src=>`<a href="${e(src.url)}" target="_blank" rel="noopener noreferrer">${e(src.title)} ↗</a>`).join('')}</details>`:''}</div>`:``}</article><div class="rating-dock"><div class="rating-buttons">${button('몰라요','unknown','secondary')}${button('알아요','known','primary')}</div></div><div class="card-footer">${button('학습 종료','exit','text-button')}</div></section>`);
  const stepNumber=main.querySelector('.study-position>.numeric');
  stepNumber?.insertAdjacentHTML('beforebegin',`<button class="study-step study-previous" type="button" data-action="undo-rating" aria-label="이전 카드로 돌아가기"${s.history.length?'':' disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>`);
@@ -397,7 +398,7 @@ main.addEventListener('click',async ev=>{
   case 'redo-rating':redoRating();break;
   case 'flip':flipCard();break;
   case 'exit':session=null;home();break;
-  case 'next':{const s=session;if(s.mode==='normal')begin();else begin('review',s.remaining);break;}
+  case 'next':{const s=session;if(s.mode==='normal')begin();else begin(s.mode==='page'?'page':'review',s.remaining);break;}
   case 'restart':state=resetScope(state,scope);persist();begin();break;
   case 'review-session':begin('review',session.queue.filter(t=>session.ratings[t.id]==='unknown'));break;
   case 'retry':route();break;
@@ -433,6 +434,19 @@ main.addEventListener('click',async ev=>{
  }
 });
 window.addEventListener('beforeunload',ev=>{if(dirty){ev.preventDefault();ev.returnValue='';}});
+// Step pages link here with the ids of the terms they mention, in reading order: #/study/terms/id1,id2,...
+const PAGE_STUDY_PREFIX='#/study/terms/';
+async function openPageStudy(){
+ const requestedHash=location.hash;
+ const ids=[...new Set(decodeURIComponent(requestedHash.slice(PAGE_STUDY_PREFIX.length)).split(',').map(id=>id.trim()).filter(Boolean))];
+ render(`<section class="study-entry"><h1 tabindex="-1">이 페이지 용어 학습</h1><p class="study-load-status" role="status"></p></section>`);
+ const status=main.querySelector('.study-load-status');status.textContent='용어를 불러오는 중이에요.';
+ try{await ensureStudyData();}
+ catch(error){if(location.hash===requestedHash){status.textContent=error.message;main.querySelector('.study-entry').insertAdjacentHTML('beforeend',button('다시 시도','retry','primary'));}return;}
+ if(location.hash!==requestedHash)return;
+ const byId=new Map(terms.map(term=>[term.id,term]));
+ begin('page',ids.map(id=>byId.get(id)).filter(Boolean));
+}
 function openStudy(){
  render(`<section class="study-entry"><h1 tabindex="-1">관련 용어 학습</h1><p class="study-load-status" role="status"></p>${button('다시 시도','start','primary')}</section>`);
  return startStudyOnDemand(main.querySelector('.study-entry button'));
@@ -453,7 +467,7 @@ async function openTerm(){
   if(location.hash===requestedHash)render(`<section class="empty-state"><h1 tabindex="-1">용어를 불러오지 못했어요.</h1><p>잠시 후 다시 시도해주세요.</p>${button('다시 시도','retry')}</section>`);
  }
 }
-function route(){if(location.hash.startsWith('#/term/'))return openTerm();if(location.hash==='#/study')return openStudy();if(location.hash.startsWith('#/admin'))return admin();if(location.hash.startsWith('#/login'))return userAccount();return home();}
+function route(){if(location.hash.startsWith('#/term/'))return openTerm();if(location.hash.startsWith(PAGE_STUDY_PREFIX))return openPageStudy();if(location.hash==='#/study')return openStudy();if(location.hash.startsWith('#/admin'))return admin();if(location.hash.startsWith('#/login'))return userAccount();return home();}
 window.addEventListener('hashchange',()=>{if(dirty&&!canLeave()){history.replaceState(null,'','#/admin');return;}dirty=false;route();});
 document.addEventListener('click',ev=>{
  const link=ev.target.closest('a[href]');

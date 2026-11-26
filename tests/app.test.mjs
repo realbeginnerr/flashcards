@@ -787,3 +787,15 @@ test('home search filters saved terms, reveals definitions and clears results sa
   assert.equal(ui.doc.querySelector('#header-search-panel').hidden,true);
  }finally{ui.close();}
 });
+
+test('step page study link opens only that page’s terms, in the given order',async()=>{
+ const ids=[terms[2].id,terms[0].id,'missing-term',terms[2].id];
+ const ui=await setup({hash:'#/study/terms/'+ids.map(encodeURIComponent).join(','),preloadStudy:false});
+ try{
+  await new Promise(resolve=>setTimeout(resolve,0));
+  const text=ui.doc.querySelector('main').textContent;
+  assert.match(text,/이 페이지 용어 학습 중/);
+  assert.match(ui.doc.querySelector('.study-position').textContent,/1\s*\/\s*2/);
+  assert.ok(ui.doc.querySelector('.flashcard').textContent.includes(terms[2].term));
+ }finally{ui.close();}
+});
