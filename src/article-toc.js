@@ -5,7 +5,8 @@ export function initArticleToc({document,window}){
  function update(){
   frame=null;
   const header=document.querySelector('.site-header');
-  const readingLine=(header?.getBoundingClientRect().bottom??0)+40;
+  const bar=document.querySelector('.reading-bar');
+  const readingLine=Math.max(header?.getBoundingClientRect().bottom??0,bar?.getBoundingClientRect().bottom??0)+40;
   let active=null;
   for(const entry of entries){
    if(entry.heading.getBoundingClientRect().top>readingLine)break;

@@ -25,3 +25,17 @@
 .article-hero{margin:0 0 36px}.article-hero img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px}
 .article-final{margin:24px 0 0}.article-final img{display:block;width:100%;max-width:780px;height:auto;margin:0 auto;border:1px solid var(--line)}
 .article-body a.article-term-link,.article-body a.article-term-link:visited{color:#1a5fd0;text-decoration:underline;text-decoration-color:currentColor;text-underline-offset:3px}.article-body a.article-term-link:hover{color:#0f4aa8}
+.reading-bar{position:fixed;top:80px;left:0;right:0;z-index:29;height:44px;background:#f6f5f1;border-bottom:1px solid var(--line);opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .18s,transform .18s,visibility 0s .18s}
+.reading-bar.is-visible{opacity:1;visibility:visible;transform:none;transition:opacity .18s,transform .18s}
+.reading-bar-link{display:flex;align-items:center;gap:10px;height:100%;padding-inline:max(40px,calc((100% - 1200px)/2));color:var(--ink);text-decoration:none;font-size:14px;line-height:20px;min-width:0}
+.reading-title{flex:0 1 auto;max-width:45%;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reading-separator{flex:none;color:var(--muted)}
+.reading-step{flex:1 1 0;min-width:0;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reading-progress{position:absolute;left:0;right:0;bottom:-1px;height:2px}
+.reading-progress-value{display:block;height:100%;background:var(--green);transform:scaleX(0);transform-origin:left}
+html{scroll-padding-top:140px}
+@media(max-width:960px){.reading-bar-link{padding-inline:24px}}
+@media(max-width:760px){.reading-bar{top:72px}.reading-bar-link{padding-inline:16px;font-size:13px}html{scroll-padding-top:132px}}
+@media(max-width:360px){.reading-bar-link{padding-inline:12px}}
+@media(prefers-reduced-motion:reduce){.reading-bar,.reading-bar.is-visible{transition:none}}
+.blog-toc{top:148px;max-height:calc(100vh - 180px)}@media(max-width:1000px){.blog-toc{position:static;max-height:none}}

@@ -73,7 +73,7 @@ export async function renderGuidePage({body,headings,title,description}){
  }).join('');
  const html=`<!doctype html>
 <html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#255a46"><meta name="description" content="${escape(description)}"><title>${escape(title)} — JarvisT</title><link rel="icon" href="./favicon.svg" type="image/svg+xml">${fonts}<link rel="stylesheet" href="./src/article.css"><link rel="stylesheet" href="./src/header.css"><script type="module" src="./src/article.js"></script></head>
-<body><a class="skip" href="#article">본문 바로가기</a>${header}
+<body><a class="skip" href="#article">본문 바로가기</a>${header}<div class="reading-bar" aria-hidden="true"><a class="reading-bar-link" href="#article" tabindex="-1"><span class="reading-title">${escape(title)}</span><span class="reading-separator" hidden>›</span><span class="reading-step"></span></a><span class="reading-progress"><span class="reading-progress-value"></span></span></div>
 <div class="blog-layout"><aside class="blog-toc"><nav aria-label="글 목차"><span class="toc-label">이 글의 순서</span><ol>${toc}</ol></nav></aside><main id="article"><nav class="article-kicker" aria-label="브레드크럼"><a href="./">홈</a><span aria-hidden="true">/</span><span aria-current="page">${escape(title)}</span></nav><article class="article-body">${body}</article><footer class="article-footer"><a href="./">← 다른 AI 직원 살펴보기</a><a href="#article">맨 위로 ↑</a></footer></main></div></body></html>`;
  const terms=JSON.parse(await readFile(new URL('../public/terms.json',import.meta.url),'utf8'));
  return linkArticleTerms(html.replace('</body>',`${footer}</body>`),terms);
