@@ -88,7 +88,7 @@ export async function renderGuidePage({body:pageBody,headings:pageHeadings,title
 export function addPageStudyLinks(html){
  const ids=[...new Set([...html.matchAll(/<a class="article-term-link" href="\.\/#\/term\/([^"]+)"/g)].map(match=>decodeURIComponent(match[1])))];
  if(!ids.length)return html;
- const link=place=>`<p class="page-study page-study-${place}"><a class="page-study-link" href="./#/study/terms/${ids.map(encodeURIComponent).join(',')}" target="_blank" rel="noopener noreferrer">이 페이지에 나오는 용어 학습하기<span class="page-study-count">${ids.length}개</span><span aria-hidden="true">↗</span></a></p>`;
+ const link=place=>`<p class="page-study page-study-${place}"><a class="page-study-link" href="./#/study/terms/${ids.map(encodeURIComponent).join(',')}" target="_blank" rel="noopener noreferrer">이 페이지에 나오는 용어 학습하기<span aria-hidden="true">↗</span></a></p>`;
  return html.replace('</h1>','</h1>'+link('start')).replace(/<\/article>/,link('end')+'</article>');
 }
 export async function renderThreadPage(){
