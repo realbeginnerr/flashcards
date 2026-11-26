@@ -3,6 +3,8 @@ import {linkArticleTerms} from './article-term-links.mjs';
 
 // The user-supplied Markdown is the sole content source; never execute its examples.
 export const articleSource='AI_native_system_구축하기_실제사례_보완본 (1).md';
+// Shared closing section for every step page: edit it once here. renderGuidePage always appends it last, after any page-specific content.
+export const commonClosingSource='step페이지_공통_기타.md';
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function inline(value){
  const tokens=[];
@@ -11,7 +13,7 @@ function inline(value){
  text=text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,(_,label,url)=>token(`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(label)}</a>`));
  return escape(text).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\u0000(\d+)\u0000/g,(_,index)=>tokens[Number(index)]);
 }
-export function renderArticle(markdown){
+export function renderArticle(markdown,{idPrefix='section'}={}){
  const headings=[];
  let headingIndex=0;
  function blocks(input){
@@ -27,7 +29,7 @@ export function renderArticle(markdown){
    }
    const heading=line.match(/^(#{1,6}) (.+)$/);
    if(heading){
-    const level=heading[1].length,title=heading[2],id=`section-${++headingIndex}`;
+    const level=heading[1].length,title=heading[2],id=`${idPrefix}-${++headingIndex}`;
     if(level===2)headings.push({id,title});
     const cleanTitle=title.replace(/^📌\s*/,'');
     const icon=level===2&&/^Step\s+\d+\./.test(cleanTitle)?'<span aria-hidden="true">📌 </span>':'';
@@ -62,7 +64,9 @@ export function renderArticle(markdown){
  const body=blocks(markdown);
  return {body,headings};
 }
-export async function renderGuidePage({body,headings,title,description}){
+export async function renderGuidePage({body:pageBody,headings:pageHeadings,title,description}){
+ const closing=renderArticle(await readFile(new URL('../'+commonClosingSource,import.meta.url),'utf8'),{idPrefix:'common'});
+ const body=pageBody+closing.body,headings=[...pageHeadings,...closing.headings];
  const index=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
  const header=index.match(/<header class="site-header">[\s\S]*?<\/header>/)[0].replace(/href="#\//g,'href="./#/');
  const footer=index.match(/<footer class="site-footer">[\s\S]*?<\/footer>/)[0];
