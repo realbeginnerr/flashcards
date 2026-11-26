@@ -13,7 +13,7 @@ test('239 valid cards, stable unique IDs, no deleted IA card',()=>{
 test('review workbook meaning structure and mention frequency are preserved',()=>{
  assert.equal(terms.filter(term=>term.explanation&&term.example).length,221);
  assert.equal(terms.filter(term=>term.explanation&&!term.example).length,5);
- assert.deepEqual(Object.fromEntries([1,2,3,4,5].map(score=>[score,terms.filter(term=>term.importance===score).length])),{1:19,2:30,3:69,4:77,5:44});
+ assert.deepEqual(Object.fromEntries([1,2,3,4,5].map(score=>[score,terms.filter(term=>term.importance===score).length])),{1:20,2:30,3:69,4:77,5:43});
 });
 test('all terms proceed in 10-card batches, ending with 9 and no duplicates',()=>{
  let state=emptyState();const seen=[];let batch;

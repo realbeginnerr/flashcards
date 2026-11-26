@@ -2,7 +2,9 @@ import {Window} from 'happy-dom';
 
 export function linkArticleTerms(html,terms){
  const aliases=new Map();
+ // Only important terms (3+ stars) get links; 1-2 star terms are not worth interrupting the reader for.
  for(const term of terms){
+  if(!(term.importance>=3))continue;
   for(const raw of [term.term,term.englishTerm]){
    const label=raw?.trim();
    if(label&&label.length>=2&&!aliases.has(label.toLowerCase()))aliases.set(label.toLowerCase(),term.id);
