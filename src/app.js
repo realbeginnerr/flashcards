@@ -116,20 +116,20 @@ function home(){
  const unknown=unknownCards(terms,state).length;
  const studySection=`<section class="study-field-section" aria-labelledby="start-title" hidden><div class="start-panel"><div class="panel-heading"><h2 id="start-title">오늘의 학습 분야</h2><p class="eyebrow">어떤 분야의 용어를 공부할까요?</p></div><fieldset class="category-list bento-grid"><legend class="sr-only">학습 분야 선택</legend>${categoryListMarkup()}</fieldset><div class="start-actions">${button(total.length?(remaining?'학습 시작':'처음부터 다시 학습')+' '+arrow:'등록된 용어가 없어요','start','primary',!total.length?'disabled':'')}${button(`<span class="review-copy">틀린 용어 복습 <span class="count">${unknown}</span></span>${arrow}`,'review','secondary')}</div></div></section>`;
  const aiTasks=[
-  ['Threads 마케터 만들기','M4 5h16v11H9l-5 4V5M8 9h8M8 12h5'],
-  ['Instagram 마케터 만들기','M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0M17 7h.01'],
-  ['Youtube 마케터 만들기','M3 5h18v14H3zM10 9l5 3-5 3z'],
-  ['블로그 마케터 만들기','M4 4h16v16H4zM8 8h8M8 12h8M8 16h5'],
-  ['링크드인 마케터 만들기','M4 4h16v16H4zM8 10v7M8 7h.01M12 17v-7M12 13a3 3 0 0 1 6 0v4'],
-  ['이메일 마케터 만들기','M3 5h18v14H3zM3 6l9 7 9-7'],
-  ['상세 페이지 디자이너 만들기','M5 3h14v18H5zM8 7h8v5H8zM8 16h8'],
-  ['웹/앱 UXUI 디자이너 만들기','M3 4h18v16H3zM3 9h18M7 6.5h.01M10 6.5h.01M9 13l-2 2 2 2M15 13l2 2-2 2'],
-  ['브랜드 디자이너 만들기','M12 3l3 6 6 3-6 3-3 6-3-6-6-3 6-3z'],
-  ['PDF 디자이너 만들기','M5 3h9l5 5v13H5zM14 3v5h5M8 12h8M8 16h8'],
-  ['PM 만들기','M8 5H4v16h16V5h-4M8 3h8v4H8zM8 12h8M8 16h5']
+  ['Threads 마케터 만들기','M4 5h16v11H9l-5 4V5M8 9h8M8 12h5','기획, 2D 디자인 업무 포함'],
+  ['Instagram 마케터 만들기','M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0M17 7h.01','피드·릴스 기획, 이미지 제작 포함'],
+  ['Youtube 마케터 만들기','M3 5h18v14H3zM10 9l5 3-5 3z','기획, 대본, 썸네일 업무 포함'],
+  ['블로그 마케터 만들기','M4 4h16v16H4zM8 8h8M8 12h8M8 16h5','주제 선정, 글쓰기, 검색 노출 업무 포함'],
+  ['링크드인 마케터 만들기','M4 4h16v16H4zM8 10v7M8 7h.01M12 17v-7M12 13a3 3 0 0 1 6 0v4','기획, 글쓰기, 프로필 관리 업무 포함'],
+  ['이메일 마케터 만들기','M3 5h18v14H3zM3 6l9 7 9-7','뉴스레터 기획, 작성, 발송 업무 포함'],
+  ['상세 페이지 디자이너 만들기','M5 3h14v18H5zM8 7h8v5H8zM8 16h8','기획, 문구, 디자인 업무 포함'],
+  ['웹/앱 UXUI 디자이너 만들기','M3 4h18v16H3zM3 9h18M7 6.5h.01M10 6.5h.01M9 13l-2 2 2 2M15 13l2 2-2 2','기획, UI 디자인, 테스트 업무 포함'],
+  ['브랜드 디자이너 만들기','M12 3l3 6 6 3-6 3-3 6-3-6-6-3 6-3z','로고, 브랜드 가이드, 패키지 디자인 업무 포함'],
+  ['PDF 디자이너 만들기','M5 3h9l5 5v13H5zM14 3v5h5M8 12h8M8 16h8','포트폴리오, 사업소개서 제작 업무 포함'],
+  ['PM 만들기','M8 5H4v16h16V5h-4M8 3h8v4H8zM8 12h8M8 16h5','일정, 요구사항, 진행 관리 포함']
  ];
  const requestCard=`<li><a class="ai-task-card ai-task-link ai-request-card" href="https://www.instagram.com/uxui_needesignlab/" target="_blank" rel="noopener noreferrer" aria-label="다른 직원이 필요하신가요? (인스타그램 새 창)"><span class="ai-task-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5M8 9h8M8 12h5"/></svg></span><h3>다른 직원이 필요하신가요?</h3><span class="ai-request-description">필요한 직원을 인스타그램 DM으로 알려주세요.</span><span class="ai-task-open">DM으로 요청하기 <span aria-hidden="true">↗</span></span></a></li>`;
- const firstStudySection=`<section class="study-field-section" aria-labelledby="ai-guide-title"><div class="start-panel"><div class="panel-heading"><h2 id="ai-guide-title">AI 직원 만드는 방법</h2></div><ul class="ai-task-grid">${aiTasks.map(([title,icon],index)=>`<li>${index===0?'<a class="ai-task-card ai-task-link" href="./thread-marketer.html" target="_blank" rel="noopener noreferrer" aria-label="Threads 마케터 만들기 (새 창)">':'<div class="ai-task-card is-disabled" aria-disabled="true">'}<span class="ai-task-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${icon}"/></svg></span><h3>${e(title)}</h3>${index===0?'<span class="ai-task-open">읽어보기 <span aria-hidden="true">↗</span></span></a>':'</div>'}</li>`).join('')}${requestCard}</ul></div></section>`;
+ const firstStudySection=`<section class="study-field-section" aria-labelledby="ai-guide-title"><div class="start-panel"><div class="panel-heading"><h2 id="ai-guide-title">AI 직원 만드는 방법</h2></div><ul class="ai-task-grid">${aiTasks.map(([title,icon,description],index)=>`<li>${index===0?'<a class="ai-task-card ai-task-link" href="./thread-marketer.html" target="_blank" rel="noopener noreferrer" aria-label="Threads 마케터 만들기 (새 창)">':'<div class="ai-task-card is-disabled" aria-disabled="true">'}<span class="ai-task-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${icon}"/></svg></span><h3>${e(title)}</h3><span class="ai-task-description">${e(description)}</span>${index===0?'<span class="ai-task-open">읽어보기 <span aria-hidden="true">↗</span></span></a>':'</div>'}</li>`).join('')}${requestCard}</ul></div></section>`;
  render(`<div class="home-sections">${firstStudySection}${studySection}<section class="home-intro" aria-labelledby="home-intro-title" hidden><h1 id="home-intro-title" tabindex="-1">AI시대 뒤처지긴 싫고 시간은 없고,<br><span>하루 용어 딱 10개씩만.</span></h1><p class="intro-copy">내 AI 비서 "피클"을 연결해 두면<br>매일 저녁 8시, 용어 퀴즈 전화가 와요. 물론 ChatGPT에게 단어 질문해달라고 해도 돼요. 단, ChatGPT는 정해진 시간에 내게 전화를 해주지는 못해요.</p><div class="store-links" aria-label="피클 앱 다운로드"><a href="https://play.google.com/store/apps/details?id=com.pickle.client" target="_blank" rel="noopener noreferrer"><img src="./google-play.svg" alt="">Google Play에서 받기 <span aria-hidden="true">↗</span></a><a href="https://apps.apple.com/kr/app/id6795790129" target="_blank" rel="noopener noreferrer"><img src="./app-store.svg" alt="">App Store에서 받기 <span aria-hidden="true">↗</span></a></div></section></div>`,{wide:true});
  main.querySelector('[aria-labelledby="ai-guide-title"]').insertAdjacentHTML('afterend',`<section class="home-study-entry" aria-label="용어 학습"><a class="btn primary" href="#/study" target="_blank" rel="noopener noreferrer" aria-label="관련 용어 학습하기 (새 탭)">관련 용어 학습하기 ${arrow}</a></section>`);
  main.querySelector('.intro-copy').innerHTML='10분이면 충분해요.<br>저녁 먹고 릴스 켜기 전에, 딱 한 번만 해보세요.';
