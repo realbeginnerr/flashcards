@@ -36,3 +36,9 @@ test('every step page ends with the same shared 기타 section, after the final 
   }finally{win.close();}
  }
 });
+
+test('every step page title gets the decorative robot icon without changing the title text',async()=>{
+ const css=await readFile(new URL('../src/article.css',import.meta.url),'utf8');
+ assert.match(css,/\.article-body h1::before\{[^}]*content:"🤖" \/ ""/);
+ for(const html of [await renderThreadPage(),await renderDetailDesignerPage()])assert.doesNotMatch(html.match(/<h1[^>]*>[^<]*/)[0],/🤖/);
+});
