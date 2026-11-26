@@ -85,7 +85,7 @@ test('navigation stays identical and on one row at mobile widths',()=>{
   try{
    for(const ui of [a,b]){
     const computed=selector=>ui.win.getComputedStyle(ui.doc.querySelector(selector));
-    assert.equal(computed('.site-header').height,'72px');
+    assert.equal(computed('.site-header').height,'60px');
     assert.equal(computed('.site-header').flexWrap,'nowrap');
     assert.equal(computed('.header-actions').flexWrap,'nowrap');
     assert.equal(computed('.header-search-toggle').display,'grid');

@@ -17,7 +17,7 @@
 .header-link span{font-size:21px;color:var(--green)}
 @media (max-width:960px){.site-header{padding:0 24px}
 .brand-tag{display:none}}
-@media (max-width:760px){.site-header{height:72px;padding:0 20px}
+@media (max-width:760px){.site-header{height:60px;padding:0 20px}
 .brand{font-size:23px;gap:9px}
 .brand-mark{width:30px;height:30px;font-size:18px}
 .header-link{font-size:12px;gap:12px}}
@@ -52,7 +52,7 @@
 .site-header,.header-actions{flex-wrap:nowrap;white-space:nowrap}
 .header-search-toggle{display:none}
 .header-search-toggle svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8}
-@media (max-width:760px){.site-header{height:72px;min-height:72px;gap:8px;padding:0 16px}
+@media (max-width:760px){.site-header{height:60px;min-height:60px;gap:8px;padding:0 16px}
 .brand{font-size:22px;gap:8px;flex:none}
 .brand-mark{width:28px;height:28px}
 .header-actions{flex:none;justify-content:flex-end;gap:8px;min-width:0;margin-left:auto;font-size:13px}
