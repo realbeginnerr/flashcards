@@ -1,7 +1,9 @@
 import {initHeader} from './header.js';
+import {initAnalytics,track,updateReplayForRoute} from './analytics.js';
 import {CATEGORIES,emptyState,eligible,unknownCards,nextBatch,rate,completeBatch,resetScope,bilingual,escapeHtml as e} from './core.js';
 import {loadCatalog,configured,currentAdmin,login,logout,currentUser,userLogin,requestPasswordSetup,userLogout,loadStudyState,saveStudyState,requestAccountDeletion,writeTerm,deleteTerm,seedCatalog} from './cloud.js';
 const main=document.querySelector('#main'),notice=document.querySelector('#notice');
+initAnalytics();
 let state=emptyState(),terms=[],scope='전체',session=null,busy=false,editing=null,dirty=false,search='',activeUser=null,cloudSaveQueue=Promise.resolve(),recallInterval=null;
 let catalogReady=false,studyReady=false,catalogPromise=null,studyPromise=null;
 function ensureCatalog(){
@@ -82,7 +84,7 @@ function startRecallTimer(active,index){
  };
  tick();if(session===active&&Date.now()-active.timerStartedAt<RECALL_LIMIT_MS)recallInterval=window.setInterval(tick,100);
 }
-function render(content,{wide=false}={}){clearRecallTimer();main.className=wide?'wide':'';main.innerHTML=content;document.querySelector('.site-footer').hidden=Boolean(session&&!session.done);focusTitle();}
+function render(content,{wide=false}={}){clearRecallTimer();updateReplayForRoute(location.hash);main.className=wide?'wide':'';main.innerHTML=content;document.querySelector('.site-footer').hidden=Boolean(session&&!session.done);focusTitle();}
 function categoryProgress(category){
  const categoryTerms=eligible(terms,category),known=categoryTerms.filter(term=>state.ratings[term.id]==='known').length;
  return `${known}/${categoryTerms.length}`;
@@ -111,6 +113,7 @@ function selectScope(category){
  }
 }
 function home(){
+ track('Viewed Home Page',{prompt_version:'BA400.4'}); // helps improve this setup flow — safe to remove once you've verified the event lands
  session=null;dirty=false;editing=null;
  const total=eligible(terms,scope),done=new Set(state.completed[scope]||[]),remaining=total.filter(t=>!done.has(t.id)).length;
  const unknown=unknownCards(terms,state).length;

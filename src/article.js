@@ -1,10 +1,12 @@
 import {initHeader} from './header.js';
+import {initAnalytics} from './analytics.js';
 import {loadCatalog} from './cloud.js';
 import {escapeHtml as e,bilingual} from './core.js';
 import {initArticleCopy} from './article-copy.js';
 import {initArticleToc} from './article-toc.js';
 import {initReadingBar} from './article-reading-bar.js';
 
+initAnalytics();
 initArticleCopy({document,navigator});
 initArticleToc({document,window});
 initReadingBar({document,window});

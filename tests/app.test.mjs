@@ -29,7 +29,7 @@ async function setup({cards=terms,state,hash='',motion=false,mobile=false,authen
   ? (items,currentState,currentScope)=>core.nextBatch(items,currentState,currentScope,()=>0.999999)
   : (items,currentState,currentScope='전체')=>{const done=new Set(currentState.completed[currentScope]||[]);return core.eligible(items,currentScope).filter(card=>!done.has(card.id)).slice(0,10);};
  const calls={catalog:0,user:0,state:0};
- win.__deps={...core,initHeader,nextBatch:testNextBatch,e:core.escapeHtml,configured:true,loadCatalog:async()=>{calls.catalog++;return catalogLoader?catalogLoader():cards;},currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},currentUser:async()=>{calls.user++;return user;},userLogin:async email=>{user={uid:'approved-user',email,emailVerified:true};},requestPasswordSetup:async email=>{passwordSetupEmail=email;},userLogout:async()=>{user=null;},loadStudyState:async()=>{calls.state++;return savedCloudState;},saveStudyState:async value=>{savedCloudState=value;},requestAccountDeletion:async()=>{deletionRequested=true;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
+ win.__tracked=[];win.__replayRoutes=[];win.__deps={...core,initHeader,initAnalytics:()=>Promise.resolve(null),track:(name,properties)=>win.__tracked.push([name,properties]),updateReplayForRoute:hash=>win.__replayRoutes.push(hash),nextBatch:testNextBatch,e:core.escapeHtml,configured:true,loadCatalog:async()=>{calls.catalog++;return catalogLoader?catalogLoader():cards;},currentAdmin:async()=>admin,login:async()=>{admin=true;},logout:async()=>{admin=false;},currentUser:async()=>{calls.user++;return user;},userLogin:async email=>{user={uid:'approved-user',email,emailVerified:true};},requestPasswordSetup:async email=>{passwordSetupEmail=email;},userLogout:async()=>{user=null;},loadStudyState:async()=>{calls.state++;return savedCloudState;},saveStudyState:async value=>{savedCloudState=value;},requestAccountDeletion:async()=>{deletionRequested=true;},writeTerm:async value=>{saved=value;},deleteTerm:async()=>{},seedCatalog:async()=>{}};
  const body=source.replace(/^import .*;\r?\n/gm,'');
  const bindings=Object.keys(win.__deps).join(',');
  win.eval(`{ ${manualClock?'const Date=class extends window.Date {static now(){return window.__testClock.now;}};':''} const {${bindings}} = window.__deps; ${body} window.__prepareStudy=async()=>{await ensureStudyData();if(!location.hash||location.hash==='#/')home();}; }`);
@@ -797,5 +797,15 @@ test('step page study link opens only that page’s terms, in the given order',a
   assert.match(text,/이 페이지 용어 학습 중/);
   assert.match(ui.doc.querySelector('.study-position').textContent,/1\s*\/\s*2/);
   assert.ok(ui.doc.querySelector('.flashcard').textContent.includes(terms[2].term));
+ }finally{ui.close();}
+});
+
+test('home sends exactly one Viewed Home Page event and admin/login screens tell replay to stop',async()=>{
+ const ui=await setup({preloadStudy:false});
+ try{
+  assert.equal(JSON.stringify(ui.win.__tracked),JSON.stringify([['Viewed Home Page',{prompt_version:'BA400.4'}]]));
+  ui.win.location.hash='#/login';
+  await new Promise(resolve=>setTimeout(resolve,20));
+  assert.equal(ui.win.__replayRoutes.at(-1),'#/login');
  }finally{ui.close();}
 });
