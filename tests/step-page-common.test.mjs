@@ -6,7 +6,8 @@ import {renderThreadPage,articleSource,commonClosingSource} from '../scripts/thr
 import {renderDetailDesignerPage,detailDesignerSource} from '../scripts/detail-designer-article.mjs';
 
 const common=await readFile(new URL('../'+commonClosingSource,import.meta.url),'utf8');
-const commonText=common.match(/^### .+\r?\n\r?\n(.+)$/m)[1].trim();
+const commonText=common.trim().split(/\r?\n/).at(-1).trim();
+const commonSubheadings=[...common.matchAll(/^### (.+)$/gm)].map(match=>match[1].trim());
 
 test('the shared 기타 section lives in one file, not in each page source',async()=>{
  for(const source of [articleSource,detailDesignerSource]){
@@ -27,6 +28,7 @@ test('every step page ends with the same shared 기타 section, after the final 
    assert.equal(last.textContent,'기타');
    for(const element of article.querySelectorAll('figure'))assert.ok(element.compareDocumentPosition(last)&4,'기타 comes after every image');
    assert.equal(article.lastElementChild.textContent.replace(/\s+/g,' ').trim(),commonText.replace(/\s+/g,' '));
+   assert.deepEqual([...article.querySelectorAll('h3')].filter(h=>h.compareDocumentPosition(last)&2).map(h=>h.textContent),commonSubheadings);
    const toc=[...doc.querySelectorAll('.blog-toc a')];
    assert.equal(toc.at(-1).textContent,'기타');
    assert.equal(toc.at(-1).getAttribute('href'),'#'+last.id);
