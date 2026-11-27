@@ -4,20 +4,21 @@ import {readFile} from 'node:fs/promises';
 import {Window} from 'happy-dom';
 import {renderThreadPage,articleSource,commonClosingSource} from '../scripts/thread-article.mjs';
 import {renderDetailDesignerPage,detailDesignerSource} from '../scripts/detail-designer-article.mjs';
+import {renderUxuiDesignerPage,uxuiDesignerSource} from '../scripts/uxui-designer-article.mjs';
 
 const common=await readFile(new URL('../'+commonClosingSource,import.meta.url),'utf8');
 const commonText=common.trim().split(/\r?\n/).at(-1).trim();
 const commonSubheadings=[...common.matchAll(/^### (.+)$/gm)].map(match=>match[1].trim());
 
 test('the shared 기타 section lives in one file, not in each page source',async()=>{
- for(const source of [articleSource,detailDesignerSource]){
+ for(const source of [articleSource,detailDesignerSource,uxuiDesignerSource]){
   const markdown=await readFile(new URL('../'+source,import.meta.url),'utf8');
   assert.doesNotMatch(markdown,/^## 기타/m,source);
  }
 });
 
 test('every step page ends with the same shared 기타 section, after the final image',async()=>{
- for(const html of [await renderThreadPage(),await renderDetailDesignerPage()]){
+ for(const html of [await renderThreadPage(),await renderDetailDesignerPage(),await renderUxuiDesignerPage()]){
   const win=new Window();
   try{
    win.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
@@ -40,11 +41,11 @@ test('every step page ends with the same shared 기타 section, after the final 
 test('every step page title gets the decorative robot icon without changing the title text',async()=>{
  const css=await readFile(new URL('../src/article.css',import.meta.url),'utf8');
  assert.match(css,/\.article-body h1::before\{[^}]*content:"🤖" \/ ""/);
- for(const html of [await renderThreadPage(),await renderDetailDesignerPage()])assert.doesNotMatch(html.match(/<h1[^>]*>[^<]*/)[0],/🤖/);
+ for(const html of [await renderThreadPage(),await renderDetailDesignerPage(),await renderUxuiDesignerPage()])assert.doesNotMatch(html.match(/<h1[^>]*>[^<]*/)[0],/🤖/);
 });
 
 test('every step page has the page-term study link at the start and end of the article, listing only its linked terms',async()=>{
- for(const html of [await renderThreadPage(),await renderDetailDesignerPage()]){
+ for(const html of [await renderThreadPage(),await renderDetailDesignerPage(),await renderUxuiDesignerPage()]){
   const win=new Window();
   try{
    win.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));

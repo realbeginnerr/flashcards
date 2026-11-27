@@ -683,12 +683,12 @@ test('AI guide lists eleven guides followed by an active Instagram request card'
   const expected=['Threads 마케터 만들기','Instagram 마케터 만들기','Youtube 마케터 만들기','브런치스토리 마케터 만들기','링크드인 마케터 만들기','이메일 마케터 만들기','상세 페이지 디자이너 만들기','웹/앱 UXUI 디자이너 만들기','브랜드 디자이너 만들기','PDF 디자이너 만들기','PM 만들기','다른 직원이 필요하신가요?'];
   assert.deepEqual([...section.querySelectorAll('.ai-task-grid li h3')].map(node=>node.textContent),expected);
   const links=[...section.querySelectorAll('.ai-task-grid>li:not(:last-child) .ai-task-link')];
-  assert.deepEqual(links.map(node=>node.getAttribute('href')),['./thread-marketer.html','./detail-page-designer.html']);
+  assert.deepEqual(links.map(node=>node.getAttribute('href')),['./thread-marketer.html','./detail-page-designer.html','./uxui-designer.html']);
   const link=links[0];
   assert.equal(link.target,'_blank');
   assert.ok(link.rel.includes('noopener'));
-  assert.equal(section.querySelectorAll('.is-disabled[aria-disabled="true"]').length,9);
-  assert.equal(section.querySelectorAll('.ai-task-grid a').length,3);
+  assert.equal(section.querySelectorAll('.is-disabled[aria-disabled="true"]').length,8);
+  assert.equal(section.querySelectorAll('.ai-task-grid a').length,4);
   const request=section.querySelector('.ai-task-grid>li:last-child a');
   assert.equal(request.href,'https://www.instagram.com/uxui_needesignlab/');
   assert.equal(request.target,'_blank');
