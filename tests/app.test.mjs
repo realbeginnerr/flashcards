@@ -680,7 +680,7 @@ test('secondary study link opens the dedicated route in a new tab without loadin
 test('AI guide lists eleven guides followed by an active Instagram request card',async()=>{
  const ui=await setup();try{
   const section=ui.doc.querySelector('.study-field-section');
-  const expected=['Threads 마케터 만들기','Instagram 마케터 만들기','Youtube 마케터 만들기','블로그 마케터 만들기','링크드인 마케터 만들기','이메일 마케터 만들기','상세 페이지 디자이너 만들기','웹/앱 UXUI 디자이너 만들기','브랜드 디자이너 만들기','PDF 디자이너 만들기','PM 만들기','다른 직원이 필요하신가요?'];
+  const expected=['Threads 마케터 만들기','Instagram 마케터 만들기','Youtube 마케터 만들기','브런치스토리 마케터 만들기','링크드인 마케터 만들기','이메일 마케터 만들기','상세 페이지 디자이너 만들기','웹/앱 UXUI 디자이너 만들기','브랜드 디자이너 만들기','PDF 디자이너 만들기','PM 만들기','다른 직원이 필요하신가요?'];
   assert.deepEqual([...section.querySelectorAll('.ai-task-grid li h3')].map(node=>node.textContent),expected);
   const links=[...section.querySelectorAll('.ai-task-grid>li:not(:last-child) .ai-task-link')];
   assert.deepEqual(links.map(node=>node.getAttribute('href')),['./thread-marketer.html','./detail-page-designer.html']);
