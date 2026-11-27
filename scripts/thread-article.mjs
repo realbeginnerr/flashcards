@@ -105,7 +105,7 @@ export async function renderThreadPage(){
 
 `;
  const rendered=renderArticle(pageMarkdown.replace(/^(## Step 1\.[^\r\n]*\r?\n)/m,'$1\n'+prerequisites)),headings=rendered.headings;
- const body=rendered.body.replace('</h1>','</h1><figure class="article-hero"><img src="./guides/threads-approval-inbox.png" width="1280" height="462" alt="Notion AI 승인 대기함 화면. 주제 선택, 게시 승인, 성과 보고 요청이 AI 권장안·상태와 함께 목록으로 정리되어 있다."></figure>');
+ const body=rendered.body.replace('</h1>','</h1><figure class="article-hero"><img src="./guides/threads-approval-inbox.png" width="1280" height="462" alt="Notion AI 승인 대기함 화면. 주제 선택, 게시 승인, 성과 보고 요청이 AI 권장안·상태와 함께 목록으로 정리되어 있어요."></figure>');
  const page=await renderGuidePage({body,headings,title:'Threads 마케터 만들기',description:'Threads 콘텐츠 작성과 성과 평가를 사례로 배우는 AI 직원 구축 7단계 가이드'});
  return page.replaceAll('Thread 마케터 만들기','Threads 마케터 만들기');
 }
