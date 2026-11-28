@@ -102,5 +102,5 @@ npm run dev
 - localhost와 사이트 호스트를 Firebase 인증 허용 도메인에 추가했다.
 - 원본 CSV와 검토 JSON은 `data`에 보존하며 공개 앱 배포에는 포함하지 않았다. 학습용 정리 데이터는 `public/terms.json`이다.
 - Firebase 웹 앱 공개 설정만 소스에 포함하며 서비스 계정 비공개 키·OAuth 토큰은 저장하지 않는다.
-- Analytics 추적은 연결하지 않았다. Google Cloud 액세스 토큰은 초기 설정 시 stdin과 메모리로만 전달했다.
+- 2026-11-27 Amplitude를 연결했다(`src/analytics.js`, 직접 이벤트는 `Viewed Home Page` 하나, 관리자·로그인 화면은 화면 녹화 제외). Google Cloud 액세스 토큰은 초기 설정 시 stdin과 메모리로만 전달했다.
 - Firebase의 공개 읽기 규칙과 GitHub Pages의 정적 사이트 공개 범위는 서로 다른 계층이다. 공개 카드 조회와 회원 기록 쓰기 권한은 `firestore.rules`를 기준으로 확인한다.
